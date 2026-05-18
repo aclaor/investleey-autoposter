@@ -1,8 +1,8 @@
 """
 Investleey + ZEUSVision Image Auto-Poster
-Generates chart images and posts to Instagram + X
+Generates candlestick chart images and posts to Facebook
 """
-import os, requests, random, io, json
+import os, requests, random, io
 from datetime import datetime, timezone
 import matplotlib
 matplotlib.use('Agg')
@@ -11,15 +11,9 @@ import matplotlib.patches as mpatches
 import numpy as np
 
 # ── CONFIG ────────────────────────────────────────────────
-FB_TOKEN       = os.environ["FB_PAGE_ACCESS_TOKEN"]
-FB_PAGE_ID     = "103114287835428"
-IG_ACCOUNT_ID  = os.environ.get("IG_ACCOUNT_ID", "")  # Instagram Business Account ID
-X_API_KEY      = os.environ.get("X_API_KEY", "")
-X_API_SECRET   = os.environ.get("X_API_SECRET", "")
-X_ACCESS_TOKEN = os.environ.get("X_ACCESS_TOKEN", "")
-X_ACCESS_SECRET= os.environ.get("X_ACCESS_SECRET", "")
-
-MODE = os.environ.get("POST_MODE", "stocks")  # stocks or crypto
+FB_TOKEN   = os.environ["FB_PAGE_ACCESS_TOKEN"]
+FB_PAGE_ID = "103114287835428"
+MODE = os.environ.get("POST_MODE", "stocks")
 
 if MODE == "crypto":
     API_URL   = "https://cryptovision-production-ca20.up.railway.app"
@@ -44,179 +38,152 @@ def get_forecast(symbol):
             json={"symbol": symbol, "interval": "1d"},
             headers={"x-api-token": API_TOKEN, "Content-Type": "application/json"},
             timeout=120)
+        print(f"Status: {r.status_code}")
         if r.status_code == 200:
             return r.json()
-        print(f"Error: {r.status_code}")
+        print(f"Error: {r.text[:100]}")
     except Exception as e:
         print(f"Exception: {e}")
     return None
 
-# ── GENERATE CHART IMAGE ──────────────────────────────────
+# ── GENERATE CANDLESTICK CHART ────────────────────────────
 def generate_chart(data, symbol):
-    last_close = data.get("last_close", 0)
-    f_ma3  = data.get("forecast_ma3",  [last_close]*60)
-    f_ma7  = data.get("forecast_ma7",  [last_close]*60)
-    f_ma25 = data.get("forecast_ma25", [last_close]*60)
+    last_close = float(data.get("last_close", 0))
+    candles    = data.get("candles", [])
+    f_ma3  = data.get("forecast_ma3",     [last_close]*60)
+    f_ma7  = data.get("forecast_ma7",     [last_close]*60)
+    f_ma25 = data.get("forecast_ma25",    [last_close]*60)
     f_vwap = data.get("forecast_vwap600", [last_close]*60)
     acc_ma3  = data.get("accuracy_ma3",  0)
     acc_ma7  = data.get("accuracy_ma7",  0)
     acc_ma25 = data.get("accuracy_ma25", 0)
 
-    # Only show 30 days of forecast
-    days = min(30, len(f_ma7))
-    x = list(range(days))
+    display = symbol.replace("USDT", "/USDT") if MODE == "crypto" else symbol
 
-    # Display symbol
-    if MODE == "crypto":
-        display = symbol.replace("USDT", "/USDT")
-    else:
-        display = symbol
+    # Use last 100 candles
+    hist = candles[-100:] if len(candles) >= 100 else candles
+    n_hist = len(hist)
+    n_fore = min(30, len(f_ma7))
+    x_fore = list(range(n_hist, n_hist + n_fore))
 
-    # Dark theme chart
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Extract OHLC
+    opens  = [float(c['o']) for c in hist]
+    highs  = [float(c['h']) for c in hist]
+    lows   = [float(c['l']) for c in hist]
+    closes = [float(c['c']) for c in hist]
+
+    # Price range for ylim
+    all_prices = highs + lows + [v for v in f_ma7[:n_fore] if v]
+    price_min = min(all_prices) * 0.995
+    price_max = max(all_prices) * 1.005
+
+    fig, ax = plt.subplots(figsize=(14, 7))
     fig.patch.set_facecolor('#0b0f1a')
     ax.set_facecolor('#131926')
+    ax.set_ylim(price_min, price_max)
+    ax.set_xlim(-1, n_hist + n_fore + 1)
 
-    # Current price line
-    ax.axhline(y=last_close, color='#607a99', linewidth=1, linestyle='--', alpha=0.5, label=f'Current: ${last_close:,.2f}')
+    # ── Draw candlesticks ──
+    for i in range(n_hist):
+        o, h, l, cl = opens[i], highs[i], lows[i], closes[i]
+        up = cl >= o
+        color = '#0ecb81' if up else '#f6465d'
+        # Wick
+        ax.plot([i, i], [l, h], color=color, linewidth=0.8, zorder=2)
+        # Body
+        body_bot = min(o, cl)
+        body_top = max(o, cl)
+        body_h = max(body_top - body_bot, last_close * 0.0005)
+        rect = plt.Rectangle((i - 0.35, body_bot), 0.7, body_h,
+                              color=color, zorder=3)
+        ax.add_patch(rect)
 
-    # Forecast lines
-    ax.plot(x, f_ma3[:days],  color='#00d4ff', linewidth=2,   linestyle='--', label=f'MA-3  ({acc_ma3:.0f}%)')
-    ax.plot(x, f_ma7[:days],  color='#0ecb81', linewidth=2.5, linestyle='-',  label=f'MA-7  ({acc_ma7:.0f}%)')
-    ax.plot(x, f_ma25[:days], color='#f0b90b', linewidth=2,   linestyle='-',  label=f'MA-25 ({acc_ma25:.0f}%)')
-    ax.plot(x, f_vwap[:days], color='#f6465d', linewidth=1.5, linestyle=':',  label=f'VWAP')
+    # ── Divider ──
+    ax.axvline(x=n_hist - 0.5, color='#344a66', linewidth=1.5,
+               linestyle='--', alpha=0.9, zorder=4)
+    ax.text(n_hist + 0.3, price_max * 0.999, 'AI FORECAST →',
+            color='#344a66', fontsize=8, va='top', zorder=5,
+            fontfamily='monospace')
 
-    # Fill between MA7 and current
-    ax.fill_between(x, last_close, f_ma7[:days],
-                    alpha=0.1,
-                    color='#0ecb81' if f_ma7[days-1] >= last_close else '#f6465d')
+    # ── Forecast lines ──
+    ax.plot(x_fore, f_ma3[:n_fore],  color='#00d4ff', linewidth=1.8,
+            linestyle='--', label=f'MA-3 ({acc_ma3:.0f}%)', zorder=4)
+    ax.plot(x_fore, f_ma7[:n_fore],  color='#0ecb81', linewidth=2.5,
+            linestyle='-',  label=f'MA-7 ({acc_ma7:.0f}%)', zorder=4)
+    ax.plot(x_fore, f_ma25[:n_fore], color='#f0b90b', linewidth=2.0,
+            linestyle='-',  label=f'MA-25 ({acc_ma25:.0f}%)', zorder=4)
+    ax.plot(x_fore, f_vwap[:n_fore], color='#a855f7', linewidth=1.5,
+            linestyle=':',  label='VWAP', zorder=4)
 
-    # End point dots
-    ax.scatter([days-1], [f_ma7[days-1]],  color='#0ecb81', s=80, zorder=5)
-    ax.scatter([days-1], [f_ma25[days-1]], color='#f0b90b', s=80, zorder=5)
+    # Fill forecast
+    ax.fill_between(x_fore, last_close, f_ma7[:n_fore], alpha=0.08,
+                    color='#0ecb81' if f_ma7[n_fore-1] >= last_close else '#f6465d')
 
-    # Styling
+    # End dots
+    ax.scatter([x_fore[-1]], [f_ma7[n_fore-1]],  color='#0ecb81', s=80, zorder=6)
+    ax.scatter([x_fore[-1]], [f_ma25[n_fore-1]], color='#f0b90b', s=80, zorder=6)
+
+    # ── Styling ──
     ax.tick_params(colors='#607a99', labelsize=9)
-    ax.spines['bottom'].set_color('#1e2a40')
-    ax.spines['top'].set_color('#1e2a40')
-    ax.spines['left'].set_color('#1e2a40')
-    ax.spines['right'].set_color('#1e2a40')
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.2f}'))
-    ax.set_xlabel('Days', color='#607a99', fontsize=9)
-    ax.set_ylabel('Price (USD)', color='#607a99', fontsize=9)
+    for spine in ax.spines.values():
+        spine.set_color('#1e2a40')
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, p: f'${v:,.2f}'))
+    ax.set_xticks([])
+    ax.grid(color='#1e2a40', linewidth=0.4, alpha=0.5, axis='y')
+    ax.legend(loc='upper left', facecolor='#0b0f1a',
+              edgecolor='#1e2a40', labelcolor='#d0e0f0', fontsize=9)
 
-    # Legend
-    legend = ax.legend(loc='upper left', facecolor='#0b0f1a',
-                       edgecolor='#1e2a40', labelcolor='#d0e0f0', fontsize=9)
+    # ── Title ──
+    pct = ((f_ma7[n_fore-1] - last_close) / last_close) * 100
+    outlook = "BULLISH" if pct >= 0.5 else "BEARISH" if pct <= -0.5 else "NEUTRAL"
+    o_color = '#0ecb81' if pct >= 0.5 else '#f6465d' if pct <= -0.5 else '#607a99'
+    now = datetime.now(timezone.utc).strftime('%b %d, %Y')
 
-    # Outlook
-    pct_change = ((f_ma7[days-1] - last_close) / last_close) * 100
-    outlook = "BULLISH 🟢" if pct_change >= 0.5 else "BEARISH 🔴" if pct_change <= -0.5 else "NEUTRAL ⚪"
+    fig.text(0.02, 0.97, f'{display}', ha='left', va='top',
+             color='#d0e0f0', fontsize=18, fontweight='bold')
+    fig.text(0.02, 0.91, f'${last_close:,.2f}', ha='left', va='top',
+             color='#d0e0f0', fontsize=14)
+    fig.text(0.98, 0.97, outlook, ha='right', va='top',
+             color=o_color, fontsize=14, fontweight='bold')
+    fig.text(0.02, 0.02, f'100 Candles + 30-Day Forecast  |  {now}',
+             ha='left', va='bottom', color='#607a99', fontsize=8)
+    fig.text(0.98, 0.02, SITE_URL, ha='right', va='bottom',
+             color='#0ecb81', fontsize=9)
 
-    # Title
-    fig.suptitle(f'{display} — 30-Day AI Forecast', color='#d0e0f0',
-                 fontsize=16, fontweight='bold', y=0.98)
+    plt.tight_layout(rect=[0, 0.04, 1, 0.89])
 
-    # Subtitle info
-    now = datetime.now(timezone.utc).strftime('%B %d, %Y')
-    ax.set_title(f'Price: ${last_close:,.2f}  |  Outlook: {outlook}  |  {now}',
-                 color='#607a99', fontsize=10, pad=10)
-
-    # Watermark
-    fig.text(0.99, 0.01, f'🌐 {SITE_URL}', ha='right', va='bottom',
-             color='#344a66', fontsize=9, style='italic')
-
-    # Grid
-    ax.grid(color='#1e2a40', linewidth=0.5, alpha=0.7)
-
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-
-    # Save to bytes
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=150, bbox_inches='tight',
                 facecolor='#0b0f1a', edgecolor='none')
     buf.seek(0)
     plt.close()
-    print(f"✅ Chart generated!")
+    print(f"Chart generated! Candles: {n_hist}, Forecast: {n_fore}")
     return buf
 
-# ── POST IMAGE TO FACEBOOK ───────────────────────────────
+# ── POST IMAGE TO FACEBOOK ────────────────────────────────
 def post_image_to_facebook(image_bytes, caption):
     try:
-        # Upload photo to Facebook page
         url = f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/photos"
         image_bytes.seek(0)
-        r = requests.post(url, files={'source': ('chart.png', image_bytes, 'image/png')},
+        r = requests.post(url,
+            files={'source': ('chart.png', image_bytes, 'image/png')},
             data={'caption': caption, 'access_token': FB_TOKEN}, timeout=60)
-        print(f"FB Image Status: {r.status_code}")
+        print(f"FB Status: {r.status_code}")
         if r.status_code == 200:
-            print(f"✅ Image posted to Facebook! ID: {r.json().get('id','')}")
+            print(f"Posted! ID: {r.json().get('id','')}")
             return True
-        print(f"❌ FB Image Error: {r.text}")
+        print(f"FB Error: {r.text}")
     except Exception as e:
-        print(f"❌ Exception: {e}")
+        print(f"Exception: {e}")
     return False
 
-# ── POST TO INSTAGRAM ─────────────────────────────────────
-def post_to_instagram(image_bytes, caption):
-    if not IG_ACCOUNT_ID:
-        print("⚠️ No Instagram Account ID set")
-        return False
-    try:
-        # Step 1: Upload image as container
-        upload_url = f"https://graph.facebook.com/v21.0/{IG_ACCOUNT_ID}/media"
-        # Need to host image publicly first - upload to Facebook
-        files = {'file': ('chart.png', image_bytes, 'image/png')}
-        r1 = requests.post(upload_url, data={
-            'caption': caption,
-            'access_token': FB_TOKEN,
-            'image_url': ''  # Needs public URL
-        })
-        print(f"Instagram upload: {r1.status_code}")
-
-        # Step 2: Publish container
-        if r1.status_code == 200:
-            container_id = r1.json().get('id')
-            r2 = requests.post(
-                f"https://graph.facebook.com/v21.0/{IG_ACCOUNT_ID}/media_publish",
-                data={'creation_id': container_id, 'access_token': FB_TOKEN}
-            )
-            if r2.status_code == 200:
-                print(f"✅ Posted to Instagram! ID: {r2.json().get('id')}")
-                return True
-        print(f"❌ Instagram error: {r1.text}")
-    except Exception as e:
-        print(f"❌ Instagram exception: {e}")
-    return False
-
-# ── POST TO X (TWITTER) ───────────────────────────────────
-def post_to_x(image_bytes, text):
-    if not X_API_KEY:
-        print("⚠️ No X API credentials set")
-        return False
-    try:
-        import tweepy
-        # Text-only tweet (free tier)
-        client = tweepy.Client(
-            consumer_key=X_API_KEY,
-            consumer_secret=X_API_SECRET,
-            access_token=X_ACCESS_TOKEN,
-            access_token_secret=X_ACCESS_SECRET
-        )
-        r = client.create_tweet(text=text[:280])
-        print(f"✅ Posted to X! ID: {r.data['id']}")
-        return True
-    except Exception as e:
-        print(f"❌ X error: {e}")
-    return False
-
-# ── FORMAT CAPTIONS ───────────────────────────────────────
+# ── FORMAT CAPTION ────────────────────────────────────────
 def format_caption(data, symbol):
     last_close = data.get("last_close", 0)
     f_ma7  = data.get("forecast_ma7", [last_close]*60)
     acc_ma7 = data.get("accuracy_ma7", 0)
     pct = ((f_ma7[6] - last_close) / last_close * 100) if last_close else 0
-    outlook = "BULLISH 🟢" if pct >= 0.5 else "BEARISH 🔴" if pct <= -0.5 else "NEUTRAL ⚪"
+    outlook = "BULLISH" if pct >= 0.5 else "BEARISH" if pct <= -0.5 else "NEUTRAL"
 
     if MODE == "crypto":
         display = symbol.replace("USDT", "/USDT")
@@ -227,7 +194,7 @@ def format_caption(data, symbol):
         tag = f"#{symbol} #Stocks #WallStreet #Investing"
         site = "investleey.com"
 
-    caption = f"""📊 {display} AI Forecast
+    return f"""📊 {display} AI Forecast
 💰 Current: ${last_close:,.2f}
 📌 Outlook: {outlook}
 🎯 7-Day Target: ${f_ma7[6]:,.2f} ({'+' if pct>=0 else ''}{pct:.1f}%)
@@ -237,12 +204,11 @@ def format_caption(data, symbol):
 📱 Sign up FREE — 500+ {'crypto pairs' if MODE=='crypto' else 'stocks & ETFs'}
 
 #AITrading #ZEUSVision {tag}"""
-    return caption
 
 # ── MAIN ──────────────────────────────────────────────────
 def main():
     symbol = random.choices(WATCHLIST, weights=WEIGHTS, k=1)[0]
-    print(f"Mode: {MODE} | Selected: {symbol}")
+    print(f"Mode: {MODE} | Symbol: {symbol}")
 
     data = get_forecast(symbol)
     if not data:
@@ -250,28 +216,13 @@ def main():
         data = get_forecast(backup)
         symbol = backup
     if not data:
-        print("❌ No data available")
+        print("No data available")
         return
 
-    # Generate chart
-    chart = generate_chart(data, symbol)
+    chart   = generate_chart(data, symbol)
     caption = format_caption(data, symbol)
-
-    print(f"\nCaption preview:\n{caption[:200]}\n")
-
-    # Post image to Facebook page
-    chart.seek(0)
+    print(caption[:200])
     post_image_to_facebook(chart, caption)
-
-    # Post to Instagram (requires app review approval)
-    # chart.seek(0)
-    # post_to_instagram(chart, caption)
-
-    # X posting disabled - requires paid plan ($100/month)
-    # Uncomment when ready to upgrade
-    # chart.seek(0)
-    # post_to_x(chart, caption[:280])
-    print("ℹ️ X posting skipped - upgrade to X Basic to enable")
 
 if __name__ == "__main__":
     main()
