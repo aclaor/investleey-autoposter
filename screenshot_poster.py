@@ -58,8 +58,21 @@ const {{ chromium }} = require('playwright');
   const btn = await page.$('.run-btn');
   if (btn) await btn.click();
   
-  // Wait for chart to load
-  await page.waitForTimeout(8000);
+  // Wait for ZEUS-AI Computing overlay to disappear
+  console.log('Waiting for forecast to complete...');
+  try {
+    // Wait for chart-overlay to get 'hidden' class (forecast done)
+    await page.waitForFunction(() => {{
+      const overlay = document.getElementById('chart-overlay');
+      return overlay && overlay.classList.contains('hidden');
+    }}, {{ timeout: 60000 }});
+    console.log('Forecast complete!');
+  }} catch(e) {{
+    console.log('Timeout waiting for forecast, proceeding anyway');
+  }}
+  
+  // Extra buffer for lines to render
+  await page.waitForTimeout(3000);
   
   // Screenshot just the chart area
   const chartEl = await page.$('#chart-container') || await page.$('.chart-wrap') || await page.$('#chart');
