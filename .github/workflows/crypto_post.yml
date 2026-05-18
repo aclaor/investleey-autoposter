@@ -1,0 +1,24 @@
+name: ZEUSVision Crypto FB Auto-Post
+
+on:
+  schedule:
+    - cron: '0 2,6,10,14,18,22 * * *'  # Every 4 hours, offset by 2hrs from stocks
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run crypto auto-poster
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          CRYPTO_API_URL: ${{ secrets.CRYPTO_API_URL }}
+          CRYPTO_API_TOKEN: ${{ secrets.CRYPTO_API_TOKEN }}
+        run: python crypto_poster.py
