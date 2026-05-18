@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 # ── CONFIG ────────────────────────────────────────────────
 FB_TOKEN   = os.environ["FB_PAGE_ACCESS_TOKEN"]
 FB_PAGE_ID = os.environ["FB_PAGE_ID"]
-API_URL    = os.environ.get("STOCK_API_URL", "https://stockvision-production-ae61.up.railway.app")
-API_TOKEN  = os.environ.get("STOCK_API_TOKEN", "mystockvision2025")
+API_URL    = os.environ.get("STOCK_API_URL") or "https://stockvision-production-ae61.up.railway.app"
+API_TOKEN  = os.environ.get("STOCK_API_TOKEN") or "mystockvision2025"
+print(f"Using API_URL: {API_URL}")
+print(f"FB_PAGE_ID: {os.environ.get(chr(70)+chr(66)+chr(95)+chr(80)+chr(65)+chr(71)+chr(69)+chr(95)+chr(73)+chr(68), chr(78)+chr(79)+chr(84)+chr(32)+chr(83)+chr(69)+chr(84))}")
 
 # Most active stocks to rotate through
 WATCHLIST = [
@@ -23,7 +25,7 @@ WATCHLIST = [
 def get_forecast(symbol, interval="1d"):
     print(f"Fetching forecast for {symbol} {interval}...")
     r = requests.post(
-        f"{API_URL}/forecast",
+        "https://stockvision-production-ae61.up.railway.app/forecast",
         json={"symbol": symbol, "interval": interval},
         headers={"x-api-token": API_TOKEN},
         timeout=120
