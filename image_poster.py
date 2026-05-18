@@ -196,20 +196,14 @@ def post_to_x(image_bytes, text):
         return False
     try:
         import tweepy
-        auth = tweepy.OAuthHandler(X_API_KEY, X_API_SECRET)
-        auth.set_access_token(X_ACCESS_TOKEN, X_ACCESS_SECRET)
-        api = tweepy.API(auth)
+        # Text-only tweet (free tier)
         client = tweepy.Client(
             consumer_key=X_API_KEY,
             consumer_secret=X_API_SECRET,
             access_token=X_ACCESS_TOKEN,
             access_token_secret=X_ACCESS_SECRET
         )
-        # Upload media
-        image_bytes.seek(0)
-        media = api.media_upload(filename='chart.png', file=image_bytes)
-        # Post tweet
-        r = client.create_tweet(text=text[:280], media_ids=[media.media_id])
+        r = client.create_tweet(text=text[:280])
         print(f"✅ Posted to X! ID: {r.data['id']}")
         return True
     except Exception as e:
