@@ -30,73 +30,68 @@ else:
 # ── TAKE SCREENSHOT ───────────────────────────────────────
 def take_screenshot(symbol):
     print(f"Taking screenshot of {symbol} chart...")
-    script = f"""
-const {{ chromium }} = require('playwright');
-(async () => {{
+    
+    site = SITE_URL
+    
+    # Write JS file separately to avoid f-string issues
+    js_code = """
+const { chromium } = require('/home/runner/work/investleey-autoposter/investleey-autoposter/node_modules/playwright');
+(async () => {
+  const symbol = process.argv[2];
+  const site = process.argv[3];
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  await page.setViewportSize({{ width: 1280, height: 720 }});
-  
-  // Set auth token in localStorage before loading
-  await page.addInitScript(() => {{
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.addInitScript(() => {
     localStorage.setItem('zeus_token', 'dev');
     localStorage.setItem('zeus_plan', 'pro');
-  }});
-  
-  // Go to site
-  await page.goto('{SITE_URL}', {{ waitUntil: 'networkidle', timeout: 30000 }});
+  });
+  await page.goto(site, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
-  
-  // Set symbol in input
   const input = await page.$('#pair-input');
-  if (input) {{
+  if (input) {
     await input.fill('');
-    await input.type('{symbol}');
-  }}
-  
-  // Click ZEUS-AI button
+    await input.type(symbol);
+  }
   const btn = await page.$('.run-btn');
   if (btn) await btn.click();
-  
-  // Wait for ZEUS-AI Computing overlay to disappear
-  console.log('Waiting for forecast to complete...');
+  console.log('Clicked forecast button, waiting...');
   try {
-    // Wait for chart-overlay to get 'hidden' class (forecast done)
-    await page.waitForFunction(() => {{
+    await page.waitForFunction(() => {
       const overlay = document.getElementById('chart-overlay');
       return overlay && overlay.classList.contains('hidden');
-    }}, {{ timeout: 60000 }});
+    }, { timeout: 60000 });
     console.log('Forecast complete!');
-  }} catch(e) {{
-    console.log('Timeout waiting for forecast, proceeding anyway');
-  }}
-  
-  // Extra buffer for lines to render
+  } catch(e) {
+    console.log('Timeout, proceeding anyway');
+  }
   await page.waitForTimeout(3000);
-  
-  // Screenshot just the chart area
-  const chartEl = await page.$('#chart-container') || await page.$('.chart-wrap') || await page.$('#chart');
-  if (chartEl) {{
-    await chartEl.screenshot({{ path: '/tmp/chart.png' }});
-  }} else {{
-    // Full page screenshot
-    await page.screenshot({{ path: '/tmp/chart.png', clip: {{ x: 220, y: 130, width: 900, height: 500 }} }});
-  }}
-  
+  try {
+    const chartEl = await page.$('#tv-chart');
+    if (chartEl) {
+      await chartEl.screenshot({ path: '/tmp/chart.png' });
+      console.log('Chart screenshot taken');
+    } else {
+      await page.screenshot({ path: '/tmp/chart.png', clip: { x: 220, y: 80, width: 860, height: 540 } });
+      console.log('Fallback screenshot taken');
+    }
+  } catch(e) {
+    console.log('Error:', e.message);
+    await page.screenshot({ path: '/tmp/chart.png' });
+  }
   await browser.close();
-  console.log('Screenshot saved!');
-}})();
+  console.log('Done!');
+})();
 """
-    with open('/tmp/screenshot.js', 'w') as f:
-        f.write(script)
+    with open('/tmp/screenshot.js', 'w') as jf:
+        jf.write(js_code)
     
-    # Run from project dir where playwright is installed
-    import os
-    project_dir = os.path.dirname(os.path.abspath(__file__))
-    result = subprocess.run(['node', '/tmp/screenshot.js'], 
-                          capture_output=True, text=True, timeout=90,
-                          cwd=project_dir,
-                          env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
+
+    result = subprocess.run(
+        ['node', '/tmp/screenshot.js', symbol, site],
+        capture_output=True, text=True, timeout=120,
+        cwd=project_dir,
+        env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
     print("STDOUT:", result.stdout)
     print("STDERR:", result.stderr[:500])
     print("Return code:", result.returncode)
