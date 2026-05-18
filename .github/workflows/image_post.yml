@@ -1,0 +1,50 @@
+name: Image Auto-Post (Screenshot)
+
+on:
+  schedule:
+    - cron: '0 1,3,5,7,9,11,13,15,17,19,21,23 * * *'
+  workflow_dispatch:
+
+jobs:
+  post-stocks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: |
+          pip install requests pillow
+          npm install playwright
+          npx playwright install chromium --with-deps
+      - name: Post stocks screenshot
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          POST_MODE: stocks
+        run: python screenshot_poster.py
+
+  post-crypto:
+    runs-on: ubuntu-latest
+    needs: post-stocks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: |
+          pip install requests pillow
+          npm install playwright
+          npx playwright install chromium --with-deps
+      - name: Post crypto screenshot
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          POST_MODE: crypto
+        run: python screenshot_poster.py
