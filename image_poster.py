@@ -273,9 +273,9 @@ def main():
     # chart.seek(0)
     # post_to_instagram(chart, caption)
 
-    # Post to X (requires X developer credentials)
-    # chart.seek(0)
-    # post_to_x(chart, caption[:280])
+    # Post to X
+    chart.seek(0)
+    post_to_x(chart, caption[:280])
 
 if __name__ == "__main__":
     main()
