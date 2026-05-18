@@ -267,9 +267,11 @@ def main():
     # chart.seek(0)
     # post_to_instagram(chart, caption)
 
-    # Post to X
-    chart.seek(0)
-    post_to_x(chart, caption[:280])
+    # X posting disabled - requires paid plan ($100/month)
+    # Uncomment when ready to upgrade
+    # chart.seek(0)
+    # post_to_x(chart, caption[:280])
+    print("ℹ️ X posting skipped - upgrade to X Basic to enable")
 
 if __name__ == "__main__":
     main()
