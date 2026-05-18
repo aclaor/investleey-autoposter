@@ -10,6 +10,8 @@ FB_TOKEN   = os.environ["FB_PAGE_ACCESS_TOKEN"]
 FB_PAGE_ID = os.environ.get("FB_PAGE_ID") or "103114287835428"  # caishenshop
 API_URL    = os.environ.get("CRYPTO_API_URL") or "https://cryptovision-production-ca20.up.railway.app"
 API_TOKEN  = os.environ.get("CRYPTO_API_TOKEN") or "mycryptovision2025"
+if not API_TOKEN or API_TOKEN == "***":
+    API_TOKEN = "mycryptovision2025"
 print(f"Using API_URL: {API_URL}")
 print(f"FB_PAGE_ID: {os.environ.get(chr(70)+chr(66)+chr(95)+chr(80)+chr(65)+chr(71)+chr(69)+chr(95)+chr(73)+chr(68), chr(78)+chr(79)+chr(84)+chr(32)+chr(83)+chr(69)+chr(84))}")
 
