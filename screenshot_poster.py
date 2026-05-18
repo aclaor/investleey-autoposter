@@ -37,9 +37,15 @@ const {{ chromium }} = require('playwright');
   const page = await browser.newPage();
   await page.setViewportSize({{ width: 1280, height: 720 }});
   
+  // Set auth token in localStorage before loading
+  await page.addInitScript(() => {{
+    localStorage.setItem('zeus_token', 'dev');
+    localStorage.setItem('zeus_plan', 'pro');
+  }});
+  
   // Go to site
   await page.goto('{SITE_URL}', {{ waitUntil: 'networkidle', timeout: 30000 }});
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
   
   // Set symbol in input
   const input = await page.$('#pair-input');
@@ -72,10 +78,11 @@ const {{ chromium }} = require('playwright');
         f.write(script)
     
     result = subprocess.run(['node', '/tmp/screenshot.js'], 
-                          capture_output=True, text=True, timeout=60)
-    print(result.stdout)
+                          capture_output=True, text=True, timeout=90)
+    print("STDOUT:", result.stdout)
+    print("STDERR:", result.stderr[:500])
+    print("Return code:", result.returncode)
     if result.returncode != 0:
-        print(f"Screenshot error: {result.stderr[:200]}")
         return None
     
     try:
