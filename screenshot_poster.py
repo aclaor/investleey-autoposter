@@ -87,11 +87,13 @@ const { chromium } = require('/home/runner/work/investleey-autoposter/investleey
         jf.write(js_code)
     
 
+    import os as _os
+    project_dir = _os.path.dirname(_os.path.abspath(__file__))
     result = subprocess.run(
         ['node', '/tmp/screenshot.js', symbol, site],
         capture_output=True, text=True, timeout=120,
         cwd=project_dir,
-        env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
+        env={**_os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
     print("STDOUT:", result.stdout)
     print("STDERR:", result.stderr[:500])
     print("Return code:", result.returncode)
