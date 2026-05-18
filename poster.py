@@ -115,8 +115,9 @@ def format_post(data, symbol):
 
 # ── POST TO FACEBOOK ──────────────────────────────────────
 def post_to_facebook(message):
-    url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/feed"
-    r = requests.post(url, data={
+    # New Pages Experience requires v21.0+
+    url = f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/feed"
+    r = requests.post(url, json={
         "message": message,
         "access_token": FB_TOKEN
     }, timeout=30)
