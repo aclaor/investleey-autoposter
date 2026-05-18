@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 # ── CONFIG ────────────────────────────────────────────────
 FB_TOKEN   = os.environ["FB_PAGE_ACCESS_TOKEN"]
-FB_PAGE_ID = os.environ["FB_PAGE_ID"]
+FB_PAGE_ID = os.environ.get("FB_PAGE_ID") or "103114287835428"  # caishenshop
 API_URL    = os.environ.get("STOCK_API_URL") or "https://stockvision-production-ae61.up.railway.app"
 API_TOKEN  = os.environ.get("STOCK_API_TOKEN") or "mystockvision2025"
 print(f"Using API_URL: {API_URL}")
@@ -115,19 +115,28 @@ def format_post(data, symbol):
 
 # ── POST TO FACEBOOK ──────────────────────────────────────
 def post_to_facebook(message):
-    # New Pages Experience requires v21.0+
-    url = f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/feed"
-    r = requests.post(url, json={
-        "message": message,
-        "access_token": FB_TOKEN
-    }, timeout=30)
-    if r.status_code == 200:
-        post_id = r.json().get("id", "")
-        print(f"✅ Posted to Facebook! Post ID: {post_id}")
-        return True
-    else:
-        print(f"❌ Facebook error: {r.status_code} {r.text}")
-        return False
+    # Try multiple endpoints for New Pages Experience compatibility
+    endpoints = [
+        f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/feed",
+        f"https://graph.facebook.com/v20.0/{FB_PAGE_ID}/feed",
+        f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/feed",
+        f"https://graph.facebook.com/v18.0/{FB_PAGE_ID}/feed",
+    ]
+    for url in endpoints:
+        r = requests.post(url, data={
+            "message": message,
+            "access_token": FB_TOKEN
+        }, timeout=30)
+        print(f"Tried {url}: {r.status_code}")
+        if r.status_code == 200:
+            post_id = r.json().get("id", "")
+            print(f"✅ Posted to Facebook! Post ID: {post_id}")
+            return True
+        elif "New Pages Experience" not in r.text and r.status_code != 403:
+            print(f"❌ Facebook error: {r.status_code} {r.text}")
+            return False
+    print(f"❌ All endpoints failed. Last error: {r.text}")
+    return False
 
 # ── MAIN ──────────────────────────────────────────────────
 def main():
