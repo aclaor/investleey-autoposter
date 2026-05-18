@@ -140,6 +140,23 @@ def generate_chart(data, symbol):
     print(f"✅ Chart generated!")
     return buf
 
+# ── POST IMAGE TO FACEBOOK ───────────────────────────────
+def post_image_to_facebook(image_bytes, caption):
+    try:
+        # Upload photo to Facebook page
+        url = f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/photos"
+        image_bytes.seek(0)
+        r = requests.post(url, files={'source': ('chart.png', image_bytes, 'image/png')},
+            data={'caption': caption, 'access_token': FB_TOKEN}, timeout=60)
+        print(f"FB Image Status: {r.status_code}")
+        if r.status_code == 200:
+            print(f"✅ Image posted to Facebook! ID: {r.json().get('id','')}")
+            return True
+        print(f"❌ FB Image Error: {r.text}")
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+    return False
+
 # ── POST TO INSTAGRAM ─────────────────────────────────────
 def post_to_instagram(image_bytes, caption):
     if not IG_ACCOUNT_ID:
@@ -248,14 +265,17 @@ def main():
 
     print(f"\nCaption preview:\n{caption[:200]}\n")
 
-    # Post to Instagram
+    # Post image to Facebook page
     chart.seek(0)
-    post_to_instagram(chart, caption)
+    post_image_to_facebook(chart, caption)
 
-    # Post to X
-    chart.seek(0)
-    x_text = caption[:280]
-    post_to_x(chart, x_text)
+    # Post to Instagram (requires app review approval)
+    # chart.seek(0)
+    # post_to_instagram(chart, caption)
+
+    # Post to X (requires X developer credentials)
+    # chart.seek(0)
+    # post_to_x(chart, caption[:280])
 
 if __name__ == "__main__":
     main()
