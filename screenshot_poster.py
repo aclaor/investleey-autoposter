@@ -77,8 +77,13 @@ const {{ chromium }} = require('playwright');
     with open('/tmp/screenshot.js', 'w') as f:
         f.write(script)
     
+    # Run from project dir where playwright is installed
+    import os
+    project_dir = os.path.dirname(os.path.abspath(__file__))
     result = subprocess.run(['node', '/tmp/screenshot.js'], 
-                          capture_output=True, text=True, timeout=90)
+                          capture_output=True, text=True, timeout=90,
+                          cwd=project_dir,
+                          env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
     print("STDOUT:", result.stdout)
     print("STDERR:", result.stderr[:500])
     print("Return code:", result.returncode)
