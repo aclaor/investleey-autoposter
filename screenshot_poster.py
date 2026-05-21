@@ -131,8 +131,11 @@ def format_caption(data, symbol):
     acc_ma25 = data.get("accuracy_ma25", 0)
     pct = ((f_ma7[6] - last_close) / last_close * 100) if last_close else 0
     pct30 = ((f_ma7[29] - last_close) / last_close * 100) if last_close and len(f_ma7)>29 else 0
-    outlook = "BULLISH" if pct >= 0.5 else "BEARISH" if pct <= -0.5 else "NEUTRAL"
-    o_emoji = "🟢" if pct >= 0.5 else "🔴" if pct <= -0.5 else "⚪"
+    # Use first MA7 bar vs last_close for 1-hour direction
+    ma7_1h = f_ma7[0] if f_ma7 else last_close
+    is_bullish = ma7_1h > last_close
+    outlook = "BULLISH" if is_bullish else "BEARISH"
+    o_emoji = "🟢" if is_bullish else "🔴"
 
     if MODE == "crypto":
         display = symbol.replace("USDT", "/USDT")
@@ -143,7 +146,7 @@ def format_caption(data, symbol):
         tags = f"#{symbol} #Stocks #WallStreet #Investing #StockForecast"
         site = "investleey.com"
 
-    return f"""📊 {display} — ZEUS-AI Forecast
+    fb_caption = f"""📊 {display} — ZEUS-AI Forecast
 💰 Current Price: ${last_close:,.2f}
 {o_emoji} Outlook: {outlook}
 
@@ -159,6 +162,16 @@ def format_caption(data, symbol):
 📱 Sign up FREE — 500+ {'crypto pairs' if MODE=='crypto' else 'US stocks & ETFs'}
 
 #AITrading #ZEUSVision #Investleey {tags}"""
+
+    # X-ready caption (under 240 chars) - bullish/bearish based on 1H MA7 direction
+    x_dir = "📈 BULLISH" if is_bullish else "📉 BEARISH"
+    x_caption = (f"{x_dir} ${display}\n"
+                f"Now: ${last_close:,.2f} → 1H: ${ma7_1h:,.2f}\n"
+                f"7D: {'+' if pct>=0 else ''}{pct:.1f}% | AI Acc: {acc_ma7:.0f}%\n"
+                f"Free trial: {site}")
+    print(f"\n🐦 X CAPTION ({len(x_caption)} chars):\n{x_caption}\n{'─'*40}")
+
+    return fb_caption
 
 # ── POST TO FACEBOOK ──────────────────────────────────────
 def post_image_to_facebook(image_bytes, caption):
