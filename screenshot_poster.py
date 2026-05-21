@@ -150,14 +150,6 @@ def format_caption(data, symbol):
 💰 Current Price: ${last_close:,.2f}
 {o_emoji} Outlook: {outlook}
 
-🎯 7-Day Target:  ${f_ma7[6]:,.2f} ({'+' if pct>=0 else ''}{pct:.1f}%)
-🎯 30-Day Target: ${f_ma7[29] if len(f_ma7)>29 else last_close:,.2f} ({'+' if pct30>=0 else ''}{pct30:.1f}%)
-
-🤖 AI Accuracy Scores:
-  MA-3:  {acc_ma3:.1f}%
-  MA-7:  {acc_ma7:.1f}%
-  MA-25: {acc_ma25:.1f}%
-
 🌐 Get full forecast at {site}
 📱 Sign up FREE — 500+ {'crypto pairs' if MODE=='crypto' else 'US stocks & ETFs'}
 
