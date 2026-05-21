@@ -48,12 +48,16 @@ def get_forecast(symbol):
     return None
 
 # ── FORMAT MESSAGE ────────────────────────────────────────
+def escape_md(text):
+    for c in ['-', '.', '!', '(', ')', '+', '=', '|', '{', '}', '#', '~', '>', '<']:
+        text = text.replace(c, f'\\{c}')
+    return text
+
 def format_message(data, symbol):
     last_close = data.get("last_close", 0)
     f_ma7  = data.get("forecast_ma7", [last_close]*60)
     acc_ma7 = data.get("accuracy_ma7", 0)
 
-    # Bullish/bearish based on 1H MA7 direction
     ma7_1h = f_ma7[0] if f_ma7 else last_close
     is_bullish = ma7_1h > last_close
     signal = "🟢 BULLISH" if is_bullish else "🔴 BEARISH"
@@ -64,28 +68,29 @@ def format_message(data, symbol):
 
     if MODE == "crypto":
         display = symbol.replace("USDT", "/USDT")
-        asset_type = "crypto"
+        asset_type = "crypto pairs"
         tags = "#Crypto #Bitcoin #CryptoTrading #AITrading #ZEUSVision"
     else:
         display = symbol
-        asset_type = "stock"
+        asset_type = "US stocks and ETFs"
         tags = "#Stocks #WallStreet #Investing #AITrading #Investleey"
 
-    now = datetime.now(timezone.utc).strftime('%b %d, %Y %H:%M UTC')
+    pct_sign = "+" if pct_7 >= 0 else ""
 
     msg = (
-        f"{arrow} *{display} — ZEUS\\-AI Forecast*\n"
+        f"{arrow} <b>{display} — ZEUS-AI Forecast</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"💰 Price: `${last_close:,.2f}`\n"
-        f"📊 Signal: *{signal}*\n"
-        f"🎯 7\\-Day: `${target_7:,.2f}` \\({'+' if pct_7>=0 else ''}{pct_7:.1f}%\\)\n"
-        f"🤖 AI Accuracy: `{acc_ma7:.1f}%`\n"
+        f"💰 Price: <code>${last_close:,.2f}</code>\n"
+        f"📊 Signal: <b>{signal}</b>\n"
+        f"🎯 7-Day: <code>${target_7:,.2f}</code> ({pct_sign}{pct_7:.1f}%)\n"
+        f"🤖 AI Accuracy: <code>{acc_ma7:.1f}%</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 [Get full forecast]({SITE_URL})\n"
-        f"📱 Free 15\\-day trial — 500\\+ {asset_type}s\n\n"
+        f"🌐 <a href=\"{SITE_URL}\">Get full forecast</a>\n"
+        f"📱 Free 15-day trial — 500+ {asset_type}\n\n"
         f"{tags}"
     )
     return msg
+
 
 # ── TAKE SCREENSHOT ───────────────────────────────────────
 def take_screenshot(symbol):
@@ -155,7 +160,7 @@ def post_to_telegram(message, image_path=None):
             r = requests.post(url, data={
                 "chat_id": CHANNEL,
                 "caption": message,
-                "parse_mode": "MarkdownV2"
+                "parse_mode": "HTML"
             }, files={"photo": img}, timeout=30)
     else:
         # Text only
@@ -163,7 +168,7 @@ def post_to_telegram(message, image_path=None):
         r = requests.post(url, json={
             "chat_id": CHANNEL,
             "text": message,
-            "parse_mode": "MarkdownV2",
+            "parse_mode": "HTML",
             "disable_web_page_preview": False
         }, timeout=30)
 
