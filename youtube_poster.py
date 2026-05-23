@@ -54,43 +54,32 @@ def get_forecast(symbol):
 # ── TAKE SCREENSHOT ───────────────────────────────────────
 def take_screenshot(symbol):
     try:
-        subprocess.run(["pip", "install", "playwright", "-q"], capture_output=True)
-        subprocess.run(["playwright", "install", "chromium", "--with-deps"], capture_output=True)
-    except: pass
-
-    js = f"""
-const {{ chromium }} = require('playwright');
-(async () => {{
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.setViewportSize({{ width: 1080, height: 1920 }});
-  await page.goto('{SITE_URL}', {{ waitUntil: 'networkidle', timeout: 30000 }});
-  await page.waitForTimeout(2000);
-  const input = await page.$('#pair-input');
-  if (input) {{ await input.fill(''); await input.type('{symbol}'); }}
-  const btn = await page.$('.run-btn');
-  if (btn) await btn.click();
-  try {{
-    await page.waitForFunction(() => {{
-      const o = document.getElementById('chart-overlay');
-      return o && o.classList.contains('hidden');
-    }}, {{ timeout: 60000 }});
-  }} catch(e) {{}}
-  await page.waitForTimeout(3000);
-  await page.screenshot({{ path: '/tmp/yt_chart.png' }});
-  await browser.close();
-  console.log('Screenshot done!');
-}})();
-"""
-    with open('/tmp/yt_ss.js', 'w') as f:
-        f.write(js)
-    
-    result = subprocess.run(['node', '/tmp/yt_ss.js'],
-        capture_output=True, text=True, timeout=120)
-    print("Screenshot:", result.stdout.strip() or result.stderr.strip())
-    
-    if os.path.exists('/tmp/yt_chart.png'):
-        return '/tmp/yt_chart.png'
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1080, "height": 1920})
+            page.goto(SITE_URL, wait_until='networkidle', timeout=30000)
+            page.wait_for_timeout(2000)
+            inp = page.query_selector('#pair-input')
+            if inp:
+                inp.fill('')
+                inp.type(symbol)
+            btn = page.query_selector('.run-btn')
+            if btn:
+                btn.click()
+            try:
+                page.wait_for_function(
+                    "() => { const o = document.getElementById('chart-overlay'); return o && o.classList.contains('hidden'); }",
+                    timeout=60000
+                )
+            except: pass
+            page.wait_for_timeout(3000)
+            page.screenshot(path='/tmp/yt_chart.png')
+            browser.close()
+            print("Screenshot done!")
+            return '/tmp/yt_chart.png'
+    except Exception as e:
+        print(f"Screenshot error: {e}")
     return None
 
 # ── CREATE VIDEO FROM SCREENSHOT ─────────────────────────
@@ -244,15 +233,22 @@ Get FREE AI forecasts for {'500+ crypto pairs' if MODE=='crypto' else '500+ US s
 
     if not image:
         print("Screenshot failed — creating simple image...")
-        # Create simple colored image as fallback
-        subprocess.run(['convert', '-size', '1080x1920', 'xc:#060810',
-            '-fill', '#00ff88' if is_bullish else '#ff4455',
-            '-font', 'DejaVu-Sans-Bold', '-pointsize', '80',
-            '-gravity', 'Center', '-annotate', '0',
-            f'{display}\n{signal} {emoji}\nTarget: {pct_sign}{pct:.1f}%\n{SITE_URL}',
-            '/tmp/yt_chart.png'], capture_output=True)
-        if os.path.exists('/tmp/yt_chart.png'):
+        # Create simple colored image as fallback using PIL
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            img = Image.new('RGB', (1080, 1920), color=(6, 8, 16))
+            draw = ImageDraw.Draw(img)
+            color = (0, 255, 136) if is_bullish else (255, 68, 85)
+            draw.rectangle([0, 0, 1080, 1920], fill=(6, 8, 16))
+            draw.text((540, 400), display, fill=(208, 224, 240), anchor='mm', font=ImageFont.load_default())
+            draw.text((540, 600), signal, fill=color, anchor='mm', font=ImageFont.load_default())
+            draw.text((540, 750), f"Target: {pct_sign}{pct:.1f}%", fill=(240, 185, 11), anchor='mm', font=ImageFont.load_default())
+            draw.text((540, 1700), SITE_URL, fill=(255, 255, 255), anchor='mm', font=ImageFont.load_default())
+            img.save('/tmp/yt_chart.png')
             image = '/tmp/yt_chart.png'
+            print("Fallback image created!")
+        except Exception as fe:
+            print(f"Fallback image error: {fe}")
 
     if not image:
         print("No image — skipping")
