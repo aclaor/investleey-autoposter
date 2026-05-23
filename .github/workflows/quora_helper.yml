@@ -1,4 +1,4 @@
-name: Daily Quora Answer Generator
+name: Daily Quora Helper
 
 on:
   schedule:
@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  generate-answers:
+  quora:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install dependencies
+      - name: Install
         run: pip install requests
-      - name: Generate Quora answers
+      - name: Run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python quora_helper.py
