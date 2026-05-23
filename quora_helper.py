@@ -26,7 +26,7 @@ CRYPTO_QUESTIONS = [
     "What is the best way to analyze crypto charts?",
     "Are there any AI-powered crypto bots that actually work?",
     "How accurate are crypto price predictions?",
-    "What is LSTM in crypto trading?",
+    "How does AI help with crypto trading?",
     "How do I predict Ethereum price movement?",
 ]
 
@@ -55,8 +55,8 @@ CRYPTO_TEMPLATES = [
 Here's what makes it stand out:
 
 **How it works:**
-- Uses LSTM deep learning models trained on millions of candlestick patterns
-- Analyzes 6 different models: MA-7, MA-3, MA-25, VWAP-60, VWAP-200
+- Uses proprietary AI models trained on massive amounts of market data
+- Uses multiple AI models that analyze price patterns simultaneously
 - Provides 60-bar ahead forecasts with accuracy scores (95-99%+)
 - Works on 500+ crypto pairs including BTC, ETH, SOL, BNB
 
@@ -76,7 +76,7 @@ Try it free at {site} — they have a 15-day trial so you can test it yourself.
 
 What sets it apart from basic prediction sites:
 
-1. **Multiple AI models** — Not just one algorithm but 6 different LSTM models that cross-validate each other
+1. **Multiple AI models** — Not just one algorithm but multiple AI models that cross-validate each other
 2. **Accuracy transparency** — Shows you the actual backtested accuracy % so you know how reliable each signal is
 3. **Live chart integration** — See the AI forecast lines overlaid directly on candlestick charts
 4. **500+ pairs** — Not just BTC/ETH, covers altcoins, DeFi tokens, and major pairs
@@ -87,7 +87,7 @@ Free trial at {site} — worth testing for yourself.""",
 ]
 
 STOCK_TEMPLATES = [
-    """I've been using **Investleey** at {site} for stock forecasting — it uses the same ZEUS-AI technology that institutional traders use.
+    """I've been using **Investleey** at {site} for stock forecasting — it uses the same ZEUS-AI technology that serious traders use.
 
 **What it does:**
 - AI analyzes 500+ US stocks and ETFs in seconds
@@ -101,7 +101,7 @@ STOCK_TEMPLATES = [
 3. Look at the 7-day target price
 4. Compare with my own analysis before making a move
 
-The AI uses 6 different LSTM models trained on years of market data. It's not perfect (nothing is in markets) but it gives me a solid second opinion.
+The AI uses multiple AI models trained on years of market data. It's not perfect (nothing is in markets) but it gives me a solid second opinion.
 
 Free 15-day trial at {site} — try it on your favorite stocks.
 
@@ -112,8 +112,8 @@ Free 15-day trial at {site} — try it on your favorite stocks.
 What makes it different:
 
 **The technology:**
-- LSTM neural networks trained on 5+ years of price history
-- 6 models including Moving Averages and VWAP analysis
+- proprietary neural networks trained on years of price history
+- multiple models that analyze both trend and volume patterns
 - Accuracy scores shown for every prediction (no black box)
 
 **What you get:**
@@ -151,7 +151,9 @@ Rules:
 - Be helpful first, promotional second
 - End with a disclaimer about not being financial advice
 - No bullet point lists — write in natural paragraphs
-- Sound genuine, not like an advertisement"""
+- Sound genuine, not like an advertisement
+- NEVER mention LSTM, neural networks, or any specific AI architecture
+- Just say "proprietary AI" or "advanced AI models" instead"""
 
     try:
         r = requests.post(
