@@ -35,39 +35,42 @@ def get_forecast(symbol):
     return None
 
 def take_screenshot(symbol):
-    js = """
-const { chromium } = require('/home/runner/work/investleey-autoposter/investleey-autoposter/node_modules/playwright');
-(async () => {
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.setViewportSize({ width: 1200, height: 800 });
-  await page.goto(process.argv[3], { waitUntil: 'networkidle', timeout: 30000 });
-  await page.waitForTimeout(3000);
-  const input = await page.$('#pair-input');
-  if (input) { await input.fill(''); await input.type(process.argv[2]); }
-  const btn = await page.$('.run-btn');
-  if (btn) await btn.click();
-  try {
-    await page.waitForFunction(() => {
-      const o = document.getElementById('chart-overlay');
-      return o && o.classList.contains('hidden');
-    }, { timeout: 60000 });
-  } catch(e) {}
-  await page.waitForTimeout(3000);
-  await page.screenshot({ path: '/tmp/pin_chart.png', clip: { x: 0, y: 0, width: 1200, height: 800 } });
-  await browser.close();
-  console.log('Done!');
-})();
-"""
-    with open('/tmp/pin_ss.js', 'w') as f: f.write(js)
-    project_dir = os.path.dirname(os.path.abspath(__file__))
-    result = subprocess.run(['node', '/tmp/pin_ss.js', symbol, SITE_URL],
-        capture_output=True, text=True, timeout=120,
-        cwd=project_dir, env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
-    print("Screenshot:", result.stdout.strip())
-    if os.path.exists('/tmp/pin_chart.png'):
-        return '/tmp/pin_chart.png'
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1200, "height": 800})
+            page.goto(SITE_URL, wait_until='networkidle', timeout=30000)
+            page.wait_for_timeout(2000)
+            # Hide order book for cleaner look
+            page.evaluate("""() => {
+                const hide = ['.ob-panel', '.trades-panel', '.right-panel', '#bottom-section', '.ticker-bar'];
+                hide.forEach(sel => { const el = document.querySelector(sel); if(el) el.style.display='none'; });
+                const layout = document.querySelector('.main-layout');
+                if(layout) layout.style.gridTemplateColumns = '1fr';
+            }""")
+            inp = page.query_selector('#pair-input')
+            if inp:
+                inp.fill('')
+                inp.type(symbol)
+            btn = page.query_selector('.run-btn')
+            if btn:
+                btn.click()
+            try:
+                page.wait_for_function(
+                    "() => { const o = document.getElementById('chart-overlay'); return o && o.classList.contains('hidden'); }",
+                    timeout=60000
+                )
+            except: pass
+            page.wait_for_timeout(3000)
+            page.screenshot(path='/tmp/pin_chart.png')
+            browser.close()
+            print("Screenshot done!")
+            return '/tmp/pin_chart.png'
+    except Exception as e:
+        print(f"Screenshot error: {e}")
     return None
+
 
 def post_to_pinterest(title, description, link, image_path):
     if not PINTEREST_TOKEN or not PINTEREST_BOARD_ID:
