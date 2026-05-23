@@ -15,8 +15,8 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install requests playwright
-          playwright install chromium
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
       - name: Post crypto pin
         env:
           POST_MODE: crypto
@@ -33,8 +33,8 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install requests playwright
-          playwright install chromium
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
       - name: Post stocks pin
         env:
           POST_MODE: stocks
