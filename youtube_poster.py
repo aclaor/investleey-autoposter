@@ -91,20 +91,37 @@ def create_video(image_path, symbol, signal, price, target, pct, acc):
     output = '/tmp/yt_short.mp4'
     emoji = "📈" if signal == "BULLISH" else "📉"
     pct_sign = "+" if pct >= 0 else ""
+    sig_color = "00ff88" if signal == "BULLISH" else "ff4455"
+    site_display = SITE_URL.replace("https://", "")
+    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-    # Create 30-second video from screenshot with text overlay
+    vf = (
+        f"scale=1080:1920:force_original_aspect_ratio=increase,"
+        f"crop=1080:1920,"
+        # Top dark overlay
+        f"drawbox=x=0:y=0:w=1080:h=540:color=black@0.80:t=fill,"
+        # Symbol
+        f"drawtext=text='{symbol} AI FORECAST':fontsize=58:fontcolor=white:x=(w-text_w)/2:y=35:fontfile={font},"
+        # Signal
+        f"drawtext=text='{signal} {emoji}':fontsize=90:fontcolor={sig_color}:x=(w-text_w)/2:y=120:fontfile={font},"
+        # Current price
+        f"drawtext=text='Price\: ${price:,.2f}':fontsize=46:fontcolor=d0e0f0:x=(w-text_w)/2:y=260:fontfile={font},"
+        # Target
+        f"drawtext=text='7D Target\: ${target:.2f} ({pct_sign}{pct:.1f}%)':fontsize=46:fontcolor=ffdd00:x=(w-text_w)/2:y=340:fontfile={font},"
+        # Confidence
+        f"drawtext=text='AI Confidence\: {acc:.0f}%':fontsize=42:fontcolor=00ffff:x=(w-text_w)/2:y=430:fontfile={font},"
+        # Bottom dark overlay
+        f"drawbox=x=0:y=1680:w=1080:h=240:color=black@0.85:t=fill,"
+        # CTA
+        f"drawtext=text='FREE 15-Day Trial':fontsize=52:fontcolor=ffdd00:x=(w-text_w)/2:y=1700:fontfile={font},"
+        f"drawtext=text='{site_display}':fontsize=46:fontcolor=white:x=(w-text_w)/2:y=1780:fontfile={font},"
+        f"drawtext=text='No credit card needed':fontsize=36:fontcolor=aabbcc:x=(w-text_w)/2:y=1850:fontfile={font}"
+    )
+
     cmd = [
         'ffmpeg', '-y',
         '-loop', '1', '-i', image_path,
-        '-vf', (
-            f"scale=1080:1920:force_original_aspect_ratio=increase,"
-            f"crop=1080:1920,"
-            f"drawtext=text='{symbol} AI FORECAST':fontsize=60:fontcolor=white:x=(w-text_w)/2:y=100:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:box=1:boxcolor=black@0.5:boxborderw=10,"
-            f"drawtext=text='{signal} {emoji}':fontsize=80:fontcolor={'00ff88' if signal=='BULLISH' else 'ff4455'}:x=(w-text_w)/2:y=200:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:box=1:boxcolor=black@0.5:boxborderw=10,"
-            f"drawtext=text='7-Day Target\\: \\${target:.2f} ({pct_sign}{pct:.1f}%)':fontsize=50:fontcolor=yellow:x=(w-text_w)/2:y=320:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:box=1:boxcolor=black@0.5:boxborderw=10,"
-            f"drawtext=text='AI Confidence\\: {acc:.0f}%':fontsize=45:fontcolor=cyan:x=(w-text_w)/2:y=420:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:box=1:boxcolor=black@0.5:boxborderw=10,"
-            f"drawtext=text='Try FREE at {SITE_URL}':fontsize=40:fontcolor=white:x=(w-text_w)/2:y=1750:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:box=1:boxcolor=black@0.7:boxborderw=10"
-        ),
+        '-vf', vf,
         '-t', '30',
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
@@ -118,6 +135,7 @@ def create_video(image_path, symbol, signal, price, target, pct, acc):
         return output
     print(f"FFmpeg error: {result.stderr[-300:]}")
     return None
+
 
 # ── UPLOAD TO YOUTUBE ─────────────────────────────────────
 def upload_to_youtube(video_path, title, description, tags):
