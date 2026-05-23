@@ -1,0 +1,44 @@
+name: Daily Quora Answer Generator
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Every day at 8 AM UTC (4 PM Philippines time)
+  workflow_dispatch:
+
+jobs:
+  generate-answers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Generate Quora answers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN_STOCKS: ${{ secrets.TELEGRAM_BOT_TOKEN_STOCKS }}
+          TELEGRAM_STOCK_CHANNEL: ${{ secrets.TELEGRAM_STOCK_CHANNEL }}
+        run: |
+          python quora_helper.py > quora_output.txt 2>&1
+          cat quora_output.txt
+          # Send to your personal Telegram so you can copy-paste
+          if [ -n "$TELEGRAM_BOT_TOKEN_STOCKS" ]; then
+            MSG="🎯 DAILY QUORA ANSWERS - $(date '+%Y-%m-%d')
+
+Copy these to Quora to drive traffic!
+$(head -100 quora_output.txt)"
+            python3 -c "
+import requests, os
+token = os.environ['TELEGRAM_BOT_TOKEN_STOCKS']
+channel = os.environ.get('TELEGRAM_STOCK_CHANNEL', '')
+msg = open('quora_output.txt').read()[:3000]
+requests.post(f'https://api.telegram.org/bot{token}/sendMessage', json={
+    'chat_id': channel,
+    'text': '🎯 Daily Quora Answers Ready!\n\nCheck GitHub Actions logs for full answers to copy-paste to Quora.',
+    'parse_mode': 'HTML'
+})
+print('Sent to Telegram!')
+"
+          fi
