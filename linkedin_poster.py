@@ -244,12 +244,30 @@ def take_screenshot(symbol):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            page = browser.new_page(viewport={"width": 1280, "height": 720})
+            # LinkedIn optimal image size: 1200x627
+            page = browser.new_page(viewport={"width": 1200, "height": 627})
             page.goto(SITE_URL, wait_until='networkidle', timeout=30000)
             page.wait_for_timeout(2000)
+            # Hide non-chart elements for clean look
             page.evaluate("""() => {
-                const hide = ['.ob-panel','.right-panel','#bottom-section','.ticker-bar'];
-                hide.forEach(sel => { const el = document.querySelector(sel); if(el) el.style.display='none'; });
+                const hide = [
+                    '.ob-panel', '.right-panel', '#bottom-section',
+                    '.ticker-bar', '.topbar', '.pair-header',
+                    '.trades-panel', '#crypto-market-overview',
+                    '#faq-section', '.bottom-bar', '#signup-popup',
+                    '.chart-signup-banner', '#chart-signup-banner',
+                    '.pricing-modal', '.modal-overlay'
+                ];
+                hide.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.style.display='none');
+                });
+                // Make chart fill the screen
+                const layout = document.querySelector('.main-layout');
+                if(layout) layout.style.gridTemplateColumns = '1fr';
+                const chart = document.querySelector('.chart-area');
+                if(chart) { chart.style.height = '550px'; chart.style.minHeight = '550px'; }
+                const panel = document.querySelector('.chart-panel');
+                if(panel) panel.style.height = '627px';
             }""")
             inp = page.query_selector('#pair-input')
             if inp:
@@ -264,9 +282,9 @@ def take_screenshot(symbol):
                     timeout=60000
                 )
             except: pass
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(4000)
             path = '/tmp/li_chart.png'
-            page.screenshot(path=path)
+            page.screenshot(path=path, clip={"x": 0, "y": 0, "width": 1200, "height": 627})
             browser.close()
             print(f"Screenshot saved!")
             return path
