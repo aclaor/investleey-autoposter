@@ -240,57 +240,41 @@ def post_to_linkedin(text, image_path=None):
 
 
 def take_screenshot(symbol):
-    import subprocess, os as _os
-    js_code = """
-const { chromium } = require('/home/runner/work/investleey-autoposter/investleey-autoposter/node_modules/playwright');
-(async () => {
-  const symbol = process.argv[2];
-  const site = process.argv[3];
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.addInitScript(() => {
-    localStorage.setItem('zeus_token', 'dev');
-    localStorage.setItem('zeus_plan', 'pro');
-  });
-  await page.goto(site, { waitUntil: 'networkidle', timeout: 30000 });
-  await page.waitForTimeout(3000);
-  const input = await page.$('#pair-input');
-  if (input) { await input.fill(''); await input.type(symbol); }
-  const btn = await page.$('.run-btn');
-  if (btn) await btn.click();
-  try {
-    await page.waitForFunction(() => {
-      const o = document.getElementById('chart-overlay');
-      return o && o.classList.contains('hidden');
-    }, { timeout: 60000 });
-  } catch(e) { console.log('Timeout'); }
-  await page.waitForTimeout(3000);
-  try {
-    const el = await page.$('#tv-chart');
-    if (el) { await el.screenshot({ path: '/tmp/li_chart.png' }); }
-    else { await page.screenshot({ path: '/tmp/li_chart.png', clip: { x: 220, y: 80, width: 860, height: 540 } }); }
-  } catch(e) { await page.screenshot({ path: '/tmp/li_chart.png' }); }
-  await browser.close();
-  console.log('Done!');
-})();
-"""
-    with open('/tmp/li_screenshot.js', 'w') as jf:
-        jf.write(js_code)
-
-    project_dir = _os.path.dirname(_os.path.abspath(__file__))
-    result = subprocess.run(
-        ['node', '/tmp/li_screenshot.js', symbol, SITE_URL],
-        capture_output=True, text=True, timeout=120,
-        cwd=project_dir,
-        env={**_os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
-
-    print("Screenshot:", result.stdout.strip())
-    if _os.path.exists('/tmp/li_chart.png'):
-        return '/tmp/li_chart.png'
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1280, "height": 720})
+            page.goto(SITE_URL, wait_until='networkidle', timeout=30000)
+            page.wait_for_timeout(2000)
+            page.evaluate("""() => {
+                const hide = ['.ob-panel','.right-panel','#bottom-section','.ticker-bar'];
+                hide.forEach(sel => { const el = document.querySelector(sel); if(el) el.style.display='none'; });
+            }""")
+            inp = page.query_selector('#pair-input')
+            if inp:
+                inp.fill('')
+                inp.type(symbol)
+            btn = page.query_selector('.run-btn')
+            if btn:
+                btn.click()
+            try:
+                page.wait_for_function(
+                    "() => { const o = document.getElementById('chart-overlay'); return o && o.classList.contains('hidden'); }",
+                    timeout=60000
+                )
+            except: pass
+            page.wait_for_timeout(3000)
+            path = '/tmp/li_chart.png'
+            page.screenshot(path=path)
+            browser.close()
+            print(f"Screenshot saved!")
+            return path
+    except Exception as e:
+        print(f"Screenshot error: {e}")
     return None
 
-# ── MAIN ──────────────────────────────────────────────────
+
 def main():
     symbol = random.choices(WATCHLIST, weights=WEIGHTS, k=1)[0]
     print(f"Mode: {MODE} | Symbol: {symbol}")
