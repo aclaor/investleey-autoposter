@@ -118,7 +118,7 @@ def upload_image_to_linkedin(image_path):
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
-        "LinkedIn-Version": "202401"
+        "LinkedIn-Version": "202501"
     }
 
     # Step 1: Initialize upload
@@ -165,7 +165,7 @@ def post_to_linkedin(text, image_path=None):
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
-        "LinkedIn-Version": "202401"
+        "LinkedIn-Version": "202501"
     }
 
     # Use the newer Posts API (works with w_member_social)
