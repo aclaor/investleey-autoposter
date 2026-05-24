@@ -98,14 +98,14 @@ Our deep learning models are trained on millions of candlesticks to detect price
 def get_person_urn():
     """Get person URN from env or LinkedIn API"""
     if LI_PERSON_ID:
-        print(f"Using hardcoded person ID: ***")
-        return f"urn:li:member:{LI_PERSON_ID}"
+        print(f"Using person ID: {LI_PERSON_ID[:4]}*** (urn:li:person:{LI_PERSON_ID})")
+        return f"urn:li:person:{LI_PERSON_ID}"
     # Fallback: try userinfo endpoint
     headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
     r = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers)
     if r.status_code == 200:
         sub = r.json().get("sub", "")
-        if sub: return f"urn:li:member:{sub}"
+        if sub: return f"urn:li:person:{sub}"
     return None
 
 def upload_image_to_linkedin(image_path):
