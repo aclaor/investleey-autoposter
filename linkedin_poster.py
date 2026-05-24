@@ -96,7 +96,8 @@ Our deep learning models are trained on millions of candlesticks to detect price
 # ── UPLOAD IMAGE ──────────────────────────────────────────
 def upload_image_to_linkedin(image_path):
     """Upload image to LinkedIn and return asset URN"""
-    org_urn = f"urn:li:organization:{LI_ORG_ID}"
+    person_urn = get_person_urn() or f"urn:li:person:me"
+    org_urn = person_urn
 
     # Step 1: Register upload
     register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
@@ -131,15 +132,37 @@ def upload_image_to_linkedin(image_path):
     return None
 
 # ── POST TO LINKEDIN ──────────────────────────────────────
+def get_person_urn():
+    """Get the member URN from the access token"""
+    r = requests.get("https://api.linkedin.com/v2/userinfo",
+        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}"})
+    if r.status_code == 200:
+        sub = r.json().get("sub", "")
+        if sub:
+            return f"urn:li:person:{sub}"
+    # Fallback via /v2/me
+    r2 = requests.get("https://api.linkedin.com/v2/me",
+        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
+                 "X-Restli-Protocol-Version": "2.0.0"})
+    if r2.status_code == 200:
+        pid = r2.json().get("id", "")
+        return f"urn:li:person:{pid}"
+    return None
+
 def post_to_linkedin(text, image_path=None):
-    org_urn = f"urn:li:organization:{LI_ORG_ID}"
+    person_urn = get_person_urn()
+    if not person_urn:
+        print("❌ Could not get person URN")
+        return False
+    print(f"Posting as: {person_urn}")
+    author_urn = person_urn
     url = "https://api.linkedin.com/v2/ugcPosts"
 
     if image_path:
         asset = upload_image_to_linkedin(image_path)
         if asset:
             body = {
-                "author": org_urn,
+                "author": author_urn,
                 "lifecycleState": "PUBLISHED",
                 "specificContent": {
                     "com.linkedin.ugc.ShareContent": {
@@ -160,7 +183,7 @@ def post_to_linkedin(text, image_path=None):
 
     if not image_path:
         body = {
-            "author": org_urn,
+            "author": author_urn,
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
