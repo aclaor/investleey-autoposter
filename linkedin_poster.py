@@ -176,65 +176,67 @@ def post_to_linkedin(text, image_path=None):
     headers = {
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
-        "X-Restli-Protocol-Version": "2.0.0",
+        "X-Restli-Protocol-Version": "2.0.0"
     }
 
-    # Use the newer Posts API (works with w_member_social)
-    url = "https://api.linkedin.com/v2/ugcPosts"
-
+    # Try ugcPosts first
     if image_path:
         asset = upload_image_to_linkedin(image_path)
-        if asset:
-            body = {
-                "author": person_urn,
-                "lifecycleState": "PUBLISHED",
-                "specificContent": {
-                    "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {"text": text},
-                        "shareMediaCategory": "IMAGE",
-                        "media": [{
-                            "status": "READY",
-                            "description": {"text": "ZEUS-AI Forecast"},
-                            "media": asset,
-                            "title": {"text": "AI Forecast"}
-                        }]
-                    }
-                },
-                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
-            }
-        else:
-            body = {
-                "author": person_urn,
-                "lifecycleState": "PUBLISHED",
-                "specificContent": {
-                    "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {"text": text},
-                        "shareMediaCategory": "NONE"
-                    }
-                },
-                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
-            }
     else:
-        body = {
-            "author": person_urn,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": text},
-                    "shareMediaCategory": "NONE"
-                }
-            },
-            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
-        }
+        asset = None
 
-    r = requests.post(url, headers=headers, json=body)
-    if r.status_code in [200, 201]:
-        post_id = r.headers.get("x-restli-id", "unknown")
-        print(f"✅ Posted to LinkedIn! ID: {post_id}")
-        return True
+    # Build body for ugcPosts
+    if asset:
+        media = [{
+            "status": "READY",
+            "description": {"text": "ZEUS-AI Forecast"},
+            "media": asset,
+            "title": {"text": "AI Forecast"}
+        }]
+        share_category = "IMAGE"
     else:
-        print(f"❌ LinkedIn error {r.status_code}: {r.text[:300]}")
-        return False
+        media = []
+        share_category = "NONE"
+
+    body = {
+        "author": person_urn,
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {
+            "com.linkedin.ugc.ShareContent": {
+                "shareCommentary": {"text": text[:3000]},
+                "shareMediaCategory": share_category,
+                "media": media
+            }
+        },
+        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+    }
+
+    r = requests.post("https://api.linkedin.com/v2/ugcPosts",
+        headers=headers, json=body)
+
+    if r.status_code in [200, 201]:
+        print(f"✅ Posted to LinkedIn!")
+        return True
+
+    print(f"ugcPosts failed {r.status_code}: {r.text[:200]}")
+
+    # Fallback: try /v2/shares API
+    share_body = {
+        "content": {"contentEntities": [], "title": text[:200]},
+        "distribution": {"linkedInDistributionTarget": {}},
+        "owner": person_urn,
+        "text": {"text": text[:3000]},
+        "subject": "AI Forecast"
+    }
+    r2 = requests.post("https://api.linkedin.com/v2/shares",
+        headers=headers, json=share_body)
+
+    if r2.status_code in [200, 201]:
+        print(f"✅ Posted via shares API!")
+        return True
+
+    print(f"shares API also failed {r2.status_code}: {r2.text[:200]}")
+    return False
 
 
 def take_screenshot(symbol):
