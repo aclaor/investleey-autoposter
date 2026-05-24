@@ -138,7 +138,7 @@ def get_person_urn():
     # Use hardcoded person ID if available (avoids needing r_liteprofile scope)
     if LI_PERSON_ID:
         print(f"Using hardcoded person ID: {LI_PERSON_ID}")
-        return f"urn:li:person:{LI_PERSON_ID}"
+        return f"urn:li:member:{LI_PERSON_ID}"
     headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
     
     # Try /v2/userinfo (OpenID Connect)
