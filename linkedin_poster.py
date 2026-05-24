@@ -134,20 +134,37 @@ def upload_image_to_linkedin(image_path):
 # ── POST TO LINKEDIN ──────────────────────────────────────
 def get_person_urn():
     """Get the member URN from the access token"""
-    r = requests.get("https://api.linkedin.com/v2/userinfo",
-        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}"})
+    headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
+    
+    # Try /v2/userinfo (OpenID Connect)
+    r = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers)
+    print(f"userinfo status: {r.status_code}")
     if r.status_code == 200:
-        sub = r.json().get("sub", "")
+        data = r.json()
+        sub = data.get("sub", "")
         if sub:
             return f"urn:li:person:{sub}"
-    # Fallback via /v2/me
+    
+    # Try /v2/me
     r2 = requests.get("https://api.linkedin.com/v2/me",
-        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
-                 "X-Restli-Protocol-Version": "2.0.0"})
+        headers={**headers, "X-Restli-Protocol-Version": "2.0.0"})
+    print(f"me status: {r2.status_code}, body: {r2.text[:200]}")
     if r2.status_code == 200:
         pid = r2.json().get("id", "")
-        return f"urn:li:person:{pid}"
+        if pid:
+            return f"urn:li:person:{pid}"
+    
+    # Try /v2/me with linkedin_id field
+    r3 = requests.get("https://api.linkedin.com/v2/me?projection=(id)",
+        headers={**headers, "X-Restli-Protocol-Version": "2.0.0"})
+    print(f"me projection status: {r3.status_code}, body: {r3.text[:200]}")
+    if r3.status_code == 200:
+        pid = r3.json().get("id", "")
+        if pid:
+            return f"urn:li:person:{pid}"
+    
     return None
+
 
 def post_to_linkedin(text, image_path=None):
     person_urn = get_person_urn()
