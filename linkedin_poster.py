@@ -118,24 +118,36 @@ def upload_image_to_linkedin(image_path):
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
-        "LinkedIn-Version": "202501"
     }
 
-    # Step 1: Initialize upload
-    init_url = "https://api.linkedin.com/rest/images?action=initializeUpload"
-    init_body = {"initializeUploadRequest": {"owner": person_urn}}
-
-    r1 = requests.post(init_url, headers=headers, json=init_body)
+    # Step 1: Register upload (v2 assets API - no versioning needed)
+    register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
+    register_body = {
+        "registerUploadRequest": {
+            "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+            "owner": person_urn,
+            "serviceRelationships": [{
+                "relationshipType": "OWNER",
+                "identifier": "urn:li:userGeneratedContent"
+            }]
+        }
+    }
+    r1 = requests.post(register_url,
+        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
+                 "Content-Type": "application/json",
+                 "X-Restli-Protocol-Version": "2.0.0"},
+        json=register_body)
     if r1.status_code not in [200, 201]:
-        print(f"Image init failed: {r1.status_code} {r1.text[:200]}")
+        print(f"Image register failed: {r1.status_code} {r1.text[:200]}")
         return None
 
-    data = r1.json().get("value", {})
-    upload_url = data.get("uploadUrl")
-    image_id = data.get("image")
+    value = r1.json().get("value", {})
+    upload_url = value.get("uploadMechanism", {}).get(
+        "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {}).get("uploadUrl")
+    asset = value.get("asset")
 
-    if not upload_url or not image_id:
-        print(f"No upload URL or image ID: {data}")
+    if not upload_url or not asset:
+        print(f"No upload URL or asset: {value}")
         return None
 
     # Step 2: Upload image bytes
@@ -144,11 +156,11 @@ def upload_image_to_linkedin(image_path):
 
     r2 = requests.put(upload_url, data=img_data,
         headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
-                 "Content-Type": "application/octet-stream"})
+                 "Content-Type": "image/png"})
 
     if r2.status_code in [200, 201]:
-        print(f"Image uploaded! Asset: {image_id}")
-        return image_id
+        print(f"Image uploaded! Asset: {asset}")
+        return asset
     else:
         print(f"Image upload failed: {r2.status_code} {r2.text[:200]}")
         return None
@@ -165,59 +177,54 @@ def post_to_linkedin(text, image_path=None):
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
-        "LinkedIn-Version": "202501"
     }
 
     # Use the newer Posts API (works with w_member_social)
-    url = "https://api.linkedin.com/rest/posts"
+    url = "https://api.linkedin.com/v2/ugcPosts"
 
     if image_path:
         asset = upload_image_to_linkedin(image_path)
         if asset:
             body = {
                 "author": person_urn,
-                "commentary": text,
-                "visibility": "PUBLIC",
-                "distribution": {
-                    "feedDistribution": "MAIN_FEED",
-                    "targetEntities": [],
-                    "thirdPartyDistributionChannels": []
-                },
-                "content": {
-                    "media": {
-                        "altText": "ZEUS-AI Forecast Chart",
-                        "id": asset
+                "lifecycleState": "PUBLISHED",
+                "specificContent": {
+                    "com.linkedin.ugc.ShareContent": {
+                        "shareCommentary": {"text": text},
+                        "shareMediaCategory": "IMAGE",
+                        "media": [{
+                            "status": "READY",
+                            "description": {"text": "ZEUS-AI Forecast"},
+                            "media": asset,
+                            "title": {"text": "AI Forecast"}
+                        }]
                     }
                 },
-                "lifecycleState": "PUBLISHED",
-                "isReshareDisabledByAuthor": False
+                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
             }
         else:
-            # Fall back to text-only if image upload fails
             body = {
                 "author": person_urn,
-                "commentary": text,
-                "visibility": "PUBLIC",
-                "distribution": {
-                    "feedDistribution": "MAIN_FEED",
-                    "targetEntities": [],
-                    "thirdPartyDistributionChannels": []
-                },
                 "lifecycleState": "PUBLISHED",
-                "isReshareDisabledByAuthor": False
+                "specificContent": {
+                    "com.linkedin.ugc.ShareContent": {
+                        "shareCommentary": {"text": text},
+                        "shareMediaCategory": "NONE"
+                    }
+                },
+                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
             }
     else:
         body = {
             "author": person_urn,
-            "commentary": text,
-            "visibility": "PUBLIC",
-            "distribution": {
-                "feedDistribution": "MAIN_FEED",
-                "targetEntities": [],
-                "thirdPartyDistributionChannels": []
-            },
             "lifecycleState": "PUBLISHED",
-            "isReshareDisabledByAuthor": False
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {"text": text},
+                    "shareMediaCategory": "NONE"
+                }
+            },
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
         }
 
     r = requests.post(url, headers=headers, json=body)
