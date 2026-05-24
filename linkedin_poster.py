@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 # ── CONFIG ────────────────────────────────────────────────
 MODE = os.environ.get("POST_MODE", "stocks")
+LI_PERSON_ID = os.environ.get("LI_PERSON_ID", "")  # Global - works across all modes
 
 if MODE == "crypto":
     LI_CLIENT_ID     = os.environ["LI_CLIENT_ID_CRYPTO"]
@@ -134,6 +135,10 @@ def upload_image_to_linkedin(image_path):
 # ── POST TO LINKEDIN ──────────────────────────────────────
 def get_person_urn():
     """Get the member URN from the access token"""
+    # Use hardcoded person ID if available (avoids needing r_liteprofile scope)
+    if LI_PERSON_ID:
+        print(f"Using hardcoded person ID: {LI_PERSON_ID}")
+        return f"urn:li:person:{LI_PERSON_ID}"
     headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
     
     # Try /v2/userinfo (OpenID Connect)
