@@ -96,79 +96,49 @@ Our deep learning models are trained on millions of candlesticks to detect price
 
 # ── UPLOAD IMAGE ──────────────────────────────────────────
 def upload_image_to_linkedin(image_path):
-    """Upload image to LinkedIn and return asset URN"""
-    person_urn = get_person_urn() or f"urn:li:person:me"
-    org_urn = person_urn
-
-    # Step 1: Register upload
-    register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
-    register_body = {
-        "registerUploadRequest": {
-            "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
-            "owner": org_urn,
-            "serviceRelationships": [{
-                "relationshipType": "OWNER",
-                "identifier": "urn:li:userGeneratedContent"
-            }]
-        }
-    }
-    r = requests.post(register_url, headers=HEADERS, json=register_body)
-    if r.status_code != 200:
-        print(f"Register upload error: {r.text[:200]}")
+    """Upload image to LinkedIn using newer Images API"""
+    person_urn = get_person_urn()
+    if not person_urn:
         return None
 
-    upload_data = r.json()
-    upload_url  = upload_data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
-    asset       = upload_data["value"]["asset"]
+    headers = {
+        "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+        "LinkedIn-Version": "202401"
+    }
 
-    # Step 2: Upload the image
-    with open(image_path, "rb") as img:
-        upload_headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
-        r2 = requests.put(upload_url, headers=upload_headers, data=img)
+    # Step 1: Initialize upload
+    init_url = "https://api.linkedin.com/rest/images?action=initializeUpload"
+    init_body = {"initializeUploadRequest": {"owner": person_urn}}
+
+    r1 = requests.post(init_url, headers=headers, json=init_body)
+    if r1.status_code not in [200, 201]:
+        print(f"Image init failed: {r1.status_code} {r1.text[:200]}")
+        return None
+
+    data = r1.json().get("value", {})
+    upload_url = data.get("uploadUrl")
+    image_id = data.get("image")
+
+    if not upload_url or not image_id:
+        print(f"No upload URL or image ID: {data}")
+        return None
+
+    # Step 2: Upload image bytes
+    with open(image_path, "rb") as f:
+        img_data = f.read()
+
+    r2 = requests.put(upload_url, data=img_data,
+        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
+                 "Content-Type": "application/octet-stream"})
 
     if r2.status_code in [200, 201]:
-        print(f"Image uploaded! Asset: {asset}")
-        return asset
-    print(f"Image upload failed: {r2.status_code}")
-    return None
-
-# ── POST TO LINKEDIN ──────────────────────────────────────
-def get_person_urn():
-    """Get the member URN from the access token"""
-    # Use hardcoded person ID if available (avoids needing r_liteprofile scope)
-    if LI_PERSON_ID:
-        print(f"Using hardcoded person ID: {LI_PERSON_ID}")
-        return f"urn:li:member:{LI_PERSON_ID}"
-    headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
-    
-    # Try /v2/userinfo (OpenID Connect)
-    r = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers)
-    print(f"userinfo status: {r.status_code}")
-    if r.status_code == 200:
-        data = r.json()
-        sub = data.get("sub", "")
-        if sub:
-            return f"urn:li:person:{sub}"
-    
-    # Try /v2/me
-    r2 = requests.get("https://api.linkedin.com/v2/me",
-        headers={**headers, "X-Restli-Protocol-Version": "2.0.0"})
-    print(f"me status: {r2.status_code}, body: {r2.text[:200]}")
-    if r2.status_code == 200:
-        pid = r2.json().get("id", "")
-        if pid:
-            return f"urn:li:person:{pid}"
-    
-    # Try /v2/me with linkedin_id field
-    r3 = requests.get("https://api.linkedin.com/v2/me?projection=(id)",
-        headers={**headers, "X-Restli-Protocol-Version": "2.0.0"})
-    print(f"me projection status: {r3.status_code}, body: {r3.text[:200]}")
-    if r3.status_code == 200:
-        pid = r3.json().get("id", "")
-        if pid:
-            return f"urn:li:person:{pid}"
-    
-    return None
+        print(f"Image uploaded! Asset: {image_id}")
+        return image_id
+    else:
+        print(f"Image upload failed: {r2.status_code} {r2.text[:200]}")
+        return None
 
 
 def post_to_linkedin(text, image_path=None):
@@ -177,53 +147,76 @@ def post_to_linkedin(text, image_path=None):
         print("❌ Could not get person URN")
         return False
     print(f"Posting as: {person_urn}")
-    author_urn = person_urn
-    url = "https://api.linkedin.com/v2/ugcPosts"
+
+    headers = {
+        "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+        "LinkedIn-Version": "202401"
+    }
+
+    # Use the newer Posts API (works with w_member_social)
+    url = "https://api.linkedin.com/rest/posts"
 
     if image_path:
         asset = upload_image_to_linkedin(image_path)
         if asset:
             body = {
-                "author": author_urn,
-                "lifecycleState": "PUBLISHED",
-                "specificContent": {
-                    "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {"text": text},
-                        "shareMediaCategory": "IMAGE",
-                        "media": [{
-                            "status": "READY",
-                            "description": {"text": "ZEUS-AI Forecast Chart"},
-                            "media": asset,
-                            "title": {"text": "AI Forecast"}
-                        }]
+                "author": person_urn,
+                "commentary": text,
+                "visibility": "PUBLIC",
+                "distribution": {
+                    "feedDistribution": "MAIN_FEED",
+                    "targetEntities": [],
+                    "thirdPartyDistributionChannels": []
+                },
+                "content": {
+                    "media": {
+                        "altText": "ZEUS-AI Forecast Chart",
+                        "id": asset
                     }
                 },
-                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+                "lifecycleState": "PUBLISHED",
+                "isReshareDisabledByAuthor": False
             }
         else:
-            image_path = None
-
-    if not image_path:
+            # Fall back to text-only if image upload fails
+            body = {
+                "author": person_urn,
+                "commentary": text,
+                "visibility": "PUBLIC",
+                "distribution": {
+                    "feedDistribution": "MAIN_FEED",
+                    "targetEntities": [],
+                    "thirdPartyDistributionChannels": []
+                },
+                "lifecycleState": "PUBLISHED",
+                "isReshareDisabledByAuthor": False
+            }
+    else:
         body = {
-            "author": author_urn,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": text},
-                    "shareMediaCategory": "NONE"
-                }
+            "author": person_urn,
+            "commentary": text,
+            "visibility": "PUBLIC",
+            "distribution": {
+                "feedDistribution": "MAIN_FEED",
+                "targetEntities": [],
+                "thirdPartyDistributionChannels": []
             },
-            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False
         }
 
-    r = requests.post(url, headers=HEADERS, json=body)
+    r = requests.post(url, headers=headers, json=body)
     if r.status_code in [200, 201]:
-        print(f"✅ Posted to LinkedIn!")
+        post_id = r.headers.get("x-restli-id", "unknown")
+        print(f"✅ Posted to LinkedIn! ID: {post_id}")
         return True
-    print(f"❌ LinkedIn error {r.status_code}: {r.text[:300]}")
-    return False
+    else:
+        print(f"❌ LinkedIn error {r.status_code}: {r.text[:300]}")
+        return False
 
-# ── TAKE SCREENSHOT ───────────────────────────────────────
+
 def take_screenshot(symbol):
     import subprocess, os as _os
     js_code = """
