@@ -177,7 +177,7 @@ def main():
     post_fb  = PLATFORMS in ["all", "facebook_instagram_only", "facebook_only"]
     post_ig  = PLATFORMS in ["all", "facebook_instagram_only", "instagram_only"]
     post_tg  = PLATFORMS in ["all", "telegram_only"]
-    post_pin = PLATFORMS in ["all"]
+    post_pin = False  # Pinterest pending Standard access approval
     post_tw  = PLATFORMS in ["all"]
 
     if post_fb:  results.append(("Facebook",  post_facebook()))
