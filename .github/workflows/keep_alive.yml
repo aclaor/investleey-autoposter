@@ -1,0 +1,23 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'  # Every 14 minutes - stays under GitHub free tier limit
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Singapore Render
+        run: |
+          echo "Pinging cryptovision-sg.onrender.com..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://cryptovision-sg.onrender.com/health --max-time 30)
+          echo "Response: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Render is awake!"
+          else
+            echo "⚠️ Waking up Render..."
+            curl -s https://cryptovision-sg.onrender.com/health --max-time 60 || true
+            echo "✅ Wake up ping sent!"
+          fi
