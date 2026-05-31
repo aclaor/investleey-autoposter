@@ -23,6 +23,8 @@ on:
           - facebook_only
           - instagram_only
           - twitter_only
+          - linkedin_only
+          - discord_only
 
 jobs:
   post:
@@ -44,13 +46,30 @@ jobs:
           MESSAGE: ${{ github.event.inputs.message }}
           IMAGE_URL: ${{ github.event.inputs.image_url }}
           PLATFORMS: ${{ github.event.inputs.platforms }}
+          # Facebook & Instagram
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+          # Telegram
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN_CRYPTO }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CRYPTO_CHANNEL }}
+          TELEGRAM_BOT_TOKEN_STOCKS: ${{ secrets.TELEGRAM_BOT_TOKEN_STOCKS }}
+          TELEGRAM_STOCK_CHANNEL: ${{ secrets.TELEGRAM_STOCK_CHANNEL }}
+          # Twitter/X
+          TWITTER_API_KEY: ${{ secrets.X_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.X_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          # LinkedIn
+          LI_ACCESS_TOKEN_CRYPTO: ${{ secrets.LI_ACCESS_TOKEN_CRYPTO }}
+          LI_ACCESS_TOKEN_STOCKS: ${{ secrets.LI_ACCESS_TOKEN_STOCKS }}
+          LI_ORG_ID_CRYPTO: ${{ secrets.LI_ORG_ID_CRYPTO }}
+          LI_ORG_ID_STOCKS: ${{ secrets.LI_ORG_ID_STOCKS }}
+          # Discord
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CRYPTO_CHANNEL: ${{ secrets.DISCORD_CRYPTO_CHANNEL }}
+          DISCORD_STOCK_CHANNEL: ${{ secrets.DISCORD_STOCK_CHANNEL }}
+          # Pinterest
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
         run: python manual_post.py
