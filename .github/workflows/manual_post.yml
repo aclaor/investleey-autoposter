@@ -1,0 +1,58 @@
+name: 📢 Manual Multi-Platform Post
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Your post message (e.g. BTC forecast is BEARISH 📉 - Target $95,000)'
+        required: true
+        type: string
+      image_url:
+        description: 'Image URL (optional - paste imgbb link or leave empty)'
+        required: false
+        type: string
+      platforms:
+        description: 'Platforms to post to'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - facebook_instagram_only
+          - telegram_only
+          - facebook_only
+          - instagram_only
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests Pillow
+
+      - name: Post to all platforms
+        env:
+          MESSAGE: ${{ github.event.inputs.message }}
+          IMAGE_URL: ${{ github.event.inputs.image_url }}
+          PLATFORMS: ${{ github.event.inputs.platforms }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
+          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+        run: python manual_post.py
