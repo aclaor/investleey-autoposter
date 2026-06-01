@@ -142,8 +142,10 @@ def post_linkedin(token, org_id, name):
             "Content-Type": "application/json",
             "X-Restli-Protocol-Version": "2.0.0"
         }
+        # Handle both raw ID and full URN
+        author_urn = org_id if org_id.startswith("urn:") else f"urn:li:organization:{org_id}"
         body = {
-            "author": f"urn:li:organization:{org_id}",
+            "author": author_urn,
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
@@ -203,8 +205,9 @@ def main():
     if post_tg:
         results.append(("Telegram Crypto", post_telegram(TG_BOT_CRYPTO, TG_CHAN_CRYPTO, "Crypto")))
         results.append(("Telegram Stocks", post_telegram(TG_BOT_STOCKS, TG_CHAN_STOCKS, "Stocks")))
-    if post_tw:
-        results.append(("Twitter/X", post_twitter()))
+    # Twitter/X disabled - requires $100/mo Basic API plan
+    # if post_tw:
+    #     results.append(("Twitter/X", post_twitter()))
     if post_li:
         results.append(("LinkedIn Crypto", post_linkedin(LI_TOKEN_CRYPTO, LI_ORG_CRYPTO, "Crypto")))
         results.append(("LinkedIn Stocks", post_linkedin(LI_TOKEN_STOCKS, LI_ORG_STOCKS, "Stocks")))
