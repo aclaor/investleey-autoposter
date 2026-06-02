@@ -6,6 +6,48 @@ Run: python youtube_poster.py
 import os, requests, random, json, time, subprocess
 from datetime import datetime, timezone
 
+def get_signal(data, interval="1h"):
+    """
+    New signal logic:
+    - 1h and above: MA7 + MA3 (first vs 5th value, both must agree)
+    - 15m and below: VWAP200/Pink (first vs 5th value)
+    """
+    short_intervals = ["1m", "5m", "15m"]
+    is_short = interval in short_intervals
+    last_close = data.get("last_close", 0)
+
+    if is_short:
+        # 15m and below: use forecast_vwap200 (Pink VWAP-200)
+        fv200 = data.get("forecast_vwap200", [])
+        if fv200 and len(fv200) >= 5:
+            first = fv200[0]
+            fifth = fv200[4]
+            threshold = (last_close or first) * 0.0005
+            if abs(fifth - first) <= threshold:
+                return "NEUTRAL", "⚪", "●"
+            elif first < fifth:
+                return "BULLISH", "🟢", "📈"
+            else:
+                return "BEARISH", "🔴", "📉"
+    else:
+        # 1h and above: MA7 AND MA3 must agree
+        fma7 = data.get("forecast_ma7", [])
+        fma3 = data.get("forecast_ma3", [])
+        if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
+            ma7_bull = fma7[0] < fma7[4]
+            ma7_bear = fma7[0] > fma7[4]
+            ma3_bull = fma3[0] < fma3[4]
+            ma3_bear = fma3[0] > fma3[4]
+            if ma7_bull and ma3_bull:
+                return "BULLISH", "🟢", "📈"
+            elif ma7_bear and ma3_bear:
+                return "BEARISH", "🔴", "📉"
+            else:
+                return "NEUTRAL", "⚪", "●"
+    return "NEUTRAL", "⚪", "●"
+
+
+
 # ── CONFIG ────────────────────────────────────────────────
 MODE = os.environ.get("POST_MODE", "stocks")
 YT_CLIENT_ID     = os.environ.get("YOUTUBE_CLIENT_ID", "")
@@ -216,7 +258,8 @@ def main():
     f_ma7 = data.get("forecast_ma7", [last_close]*60)
     acc = data.get("accuracy_ma7", 0)
     is_bullish = (f_ma7[0] if f_ma7 else last_close) > last_close
-    signal = "BULLISH" if is_bullish else "BEARISH"
+    _sn, _se, _sa = get_signal(data, interval)
+    signal = _sn
     pct = ((f_ma7[6] - last_close) / last_close * 100) if last_close and len(f_ma7)>6 else 0
     target = f_ma7[6] if len(f_ma7)>6 else last_close
     pct_sign = "+" if pct >= 0 else ""
