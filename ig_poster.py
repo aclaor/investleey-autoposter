@@ -7,6 +7,48 @@ from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
+def get_signal(data, interval="1h"):
+    """
+    New signal logic:
+    - 1h and above: MA7 + MA3 (first vs 5th value, both must agree)
+    - 15m and below: VWAP200/Pink (first vs 5th value)
+    """
+    short_intervals = ["1m", "5m", "15m"]
+    is_short = interval in short_intervals
+    last_close = data.get("last_close", 0)
+
+    if is_short:
+        # 15m and below: use forecast_vwap200 (Pink VWAP-200)
+        fv200 = data.get("forecast_vwap200", [])
+        if fv200 and len(fv200) >= 5:
+            first = fv200[0]
+            fifth = fv200[4]
+            threshold = (last_close or first) * 0.0005
+            if abs(fifth - first) <= threshold:
+                return "NEUTRAL", "⚪", "●"
+            elif first < fifth:
+                return "BULLISH", "🟢", "📈"
+            else:
+                return "BEARISH", "🔴", "📉"
+    else:
+        # 1h and above: MA7 AND MA3 must agree
+        fma7 = data.get("forecast_ma7", [])
+        fma3 = data.get("forecast_ma3", [])
+        if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
+            ma7_bull = fma7[0] < fma7[4]
+            ma7_bear = fma7[0] > fma7[4]
+            ma3_bull = fma3[0] < fma3[4]
+            ma3_bear = fma3[0] > fma3[4]
+            if ma7_bull and ma3_bull:
+                return "BULLISH", "🟢", "📈"
+            elif ma7_bear and ma3_bear:
+                return "BEARISH", "🔴", "📉"
+            else:
+                return "NEUTRAL", "⚪", "●"
+    return "NEUTRAL", "⚪", "●"
+
+
+
 # ── CONFIG ────────────────────────────────────────────────
 FB_TOKEN    = os.environ["FB_PAGE_ACCESS_TOKEN"]
 IG_USER_ID  = os.environ.get("IG_USER_ID", "17841436490185424")
@@ -91,12 +133,9 @@ def generate_image(data, symbol):
     if fc200 and len(fc200) >= 3:
         first, last = fc200[0], fc200[-1]
         threshold = (last_close or first) * 0.001
-        if last > first + threshold:
-            signal = "BULLISH ▲"
-            sig_color = GREEN
-        elif last < first - threshold:
-            signal = "BEARISH ▼"
-            sig_color = RED
+        _sn, _se, _sa = get_signal(data, interval)
+        signal = _sn + " " + _sa
+        sig_color = GREEN if _sn == "BULLISH" else (RED if _sn == "BEARISH" else GRAY)
 
     # Signal box
     draw.rounded_rectangle([W//2-180, 255, W//2+180, 315], radius=12, fill=DARK, outline=sig_color, width=3)
