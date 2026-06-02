@@ -36,7 +36,7 @@ def resize_for_instagram(image_url, imgbb_key):
     return image_url
 
 MESSAGE   = os.environ.get("MESSAGE", "")
-IMAGE_URL = os.environ.get("IMAGE_URL", "").strip()
+IMAGE_URL = os.environ.get("IMAGE_URL", "").strip().split()[0] if os.environ.get("IMAGE_URL", "").strip() else ""
 PLATFORMS = os.environ.get("PLATFORMS", "all")
 
 # Facebook & Instagram
@@ -201,10 +201,10 @@ def post_discord(channel_id, name):
         print(f"⚠️ Discord {name}: No credentials"); return False
     try:
         headers = {"Authorization": f"Bot {DC_BOT_TOKEN}", "Content-Type": "application/json"}
-        data = {"content": MESSAGE}
         if IMAGE_URL:
-            data["embeds"] = [{"image": {"url": IMAGE_URL}, "description": MESSAGE}]
-            data["content"] = ""
+            data = {"content": MESSAGE + "\n" + IMAGE_URL}
+        else:
+            data = {"content": MESSAGE}
         r = requests.post(
             f"https://discord.com/api/v10/channels/{channel_id}/messages",
             headers=headers, json=data, timeout=30
