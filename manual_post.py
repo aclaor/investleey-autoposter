@@ -3,7 +3,37 @@ Manual Multi-Platform Poster
 Triggered manually from GitHub Actions with custom message + image
 Posts to: Facebook, Instagram, Telegram (Crypto+Stocks), Twitter/X, LinkedIn, Discord
 """
-import os, requests, time
+import os, requests, time, base64, io
+
+def resize_for_instagram(image_url, imgbb_key):
+    """Download image, resize to 1080x1080 square, re-upload to imgbb"""
+    try:
+        from PIL import Image
+        # Download image
+        r = requests.get(image_url, timeout=30)
+        img = Image.open(io.BytesIO(r.content)).convert('RGB')
+        # Crop to square (center crop)
+        w, h = img.size
+        size = min(w, h)
+        left = (w - size) // 2
+        top  = (h - size) // 2
+        img = img.crop((left, top, left+size, top+size))
+        img = img.resize((1080, 1080), Image.LANCZOS)
+        # Save to bytes
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=95)
+        buf.seek(0)
+        # Re-upload to imgbb
+        b64 = base64.b64encode(buf.read()).decode('utf-8')
+        r2 = requests.post('https://api.imgbb.com/1/upload',
+            data={'key': imgbb_key, 'image': b64}, timeout=30)
+        if r2.status_code == 200:
+            url = r2.json()['data']['url']
+            print(f"✅ Image resized to 1080x1080 and re-uploaded: {url}")
+            return url
+    except Exception as e:
+        print(f"⚠️ Resize failed: {e} — using original")
+    return image_url
 
 MESSAGE   = os.environ.get("MESSAGE", "")
 IMAGE_URL = os.environ.get("IMAGE_URL", "").strip()
@@ -71,7 +101,13 @@ def post_instagram():
     if not IMAGE_URL:
         print("⚠️ Instagram: Skipped (no image - required)"); return False
     try:
+        # Resize to 1080x1080 for Instagram
+        ig_image = resize_for_instagram(IMAGE_URL, IMGBB_KEY) if IMGBB_KEY else IMAGE_URL
         r1 = requests.post(
+            f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media",
+            data={"image_url": ig_image, "caption": MESSAGE, "access_token": FB_TOKEN},
+            timeout=30
+        )
             f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media",
             data={"image_url": IMAGE_URL, "caption": MESSAGE, "access_token": FB_TOKEN},
             timeout=30
