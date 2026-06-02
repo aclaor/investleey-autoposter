@@ -5,6 +5,48 @@ Posts AI forecast charts to Discord channels
 import os, requests, random, subprocess
 from datetime import datetime, timezone
 
+def get_signal(data, interval="1h"):
+    """
+    New signal logic:
+    - 1h and above: MA7 + MA3 (first vs 5th value, both must agree)
+    - 15m and below: VWAP200/Pink (first vs 5th value)
+    """
+    short_intervals = ["1m", "5m", "15m"]
+    is_short = interval in short_intervals
+    last_close = data.get("last_close", 0)
+
+    if is_short:
+        # 15m and below: use forecast_vwap200 (Pink VWAP-200)
+        fv200 = data.get("forecast_vwap200", [])
+        if fv200 and len(fv200) >= 5:
+            first = fv200[0]
+            fifth = fv200[4]
+            threshold = (last_close or first) * 0.0005
+            if abs(fifth - first) <= threshold:
+                return "NEUTRAL", "⚪", "●"
+            elif first < fifth:
+                return "BULLISH", "🟢", "📈"
+            else:
+                return "BEARISH", "🔴", "📉"
+    else:
+        # 1h and above: MA7 AND MA3 must agree
+        fma7 = data.get("forecast_ma7", [])
+        fma3 = data.get("forecast_ma3", [])
+        if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
+            ma7_bull = fma7[0] < fma7[4]
+            ma7_bear = fma7[0] > fma7[4]
+            ma3_bull = fma3[0] < fma3[4]
+            ma3_bear = fma3[0] > fma3[4]
+            if ma7_bull and ma3_bull:
+                return "BULLISH", "🟢", "📈"
+            elif ma7_bear and ma3_bear:
+                return "BEARISH", "🔴", "📉"
+            else:
+                return "NEUTRAL", "⚪", "●"
+    return "NEUTRAL", "⚪", "●"
+
+
+
 # ── CONFIG ────────────────────────────────────────────────
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 MODE = os.environ.get("POST_MODE", "stocks")
@@ -53,10 +95,11 @@ def format_message(data, symbol):
     acc_ma25   = data.get("accuracy_ma25", 0)
 
     ma7_1h     = f_ma7[0] if f_ma7 else last_close
-    is_bullish = ma7_1h > last_close
-    signal     = "🟢 BULLISH" if is_bullish else "🔴 BEARISH"
-    arrow      = "📈" if is_bullish else "📉"
-    color      = 0x0ecb81 if is_bullish else 0xf6465d
+    signal_name, signal_emoji, signal_arrow = get_signal(data, interval)
+    is_bullish = signal_name == "BULLISH"
+    signal     = f"{signal_emoji} {signal_name}"
+    arrow      = signal_arrow
+    color      = 0x0ecb81 if is_bullish else (0xf6465d if signal_name == "BEARISH" else 0x607a99)
 
     pct_7    = ((f_ma7[6] - last_close) / last_close * 100) if last_close and len(f_ma7)>6 else 0
     target_7 = f_ma7[6] if len(f_ma7)>6 else last_close
