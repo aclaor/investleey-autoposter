@@ -101,15 +101,10 @@ def post_instagram():
     if not IMAGE_URL:
         print("⚠️ Instagram: Skipped (no image - required)"); return False
     try:
-        # Resize to 1080x1080 for Instagram
         ig_image = resize_for_instagram(IMAGE_URL, IMGBB_KEY) if IMGBB_KEY else IMAGE_URL
         r1 = requests.post(
             f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media",
             data={"image_url": ig_image, "caption": MESSAGE, "access_token": FB_TOKEN},
-            timeout=30
-        )
-            f"https://graph.facebook.com/v21.0/{IG_USER_ID}/media",
-            data={"image_url": IMAGE_URL, "caption": MESSAGE, "access_token": FB_TOKEN},
             timeout=30
         )
         if r1.status_code != 200:
@@ -127,7 +122,6 @@ def post_instagram():
     except Exception as e:
         print(f"❌ Instagram error: {e}"); return False
 
-# ── TELEGRAM ──────────────────────────────────────────────
 def post_telegram(bot_token, channel_id, name):
     if not bot_token or not channel_id:
         print(f"⚠️ Telegram {name}: No credentials"); return False
