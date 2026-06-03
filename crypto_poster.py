@@ -82,7 +82,7 @@ def pct(current, future):
 def arrow(val): return "📈" if val >= 0 else "📉"
 def fmt(val): return f"{'+' if val>=0 else ''}{val:.2f}%"
 
-def format_post(data, symbol):
+def format_post(data, symbol, interval="1h"):
     last_close = data.get("last_close", 0)
     now = datetime.now(timezone.utc)
     f_ma7  = data.get("forecast_ma7",   [last_close]*60)
@@ -151,7 +151,7 @@ def main():
     if not data:
         print("❌ No forecast available.")
         return
-    message = format_post(data, symbol)
+    message = format_post(data, symbol, interval="1h")
     print(message[:300])
     post_to_facebook(message)
 
