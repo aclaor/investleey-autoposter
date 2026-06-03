@@ -63,7 +63,7 @@ WATCHLIST = [
 ]
 
 # ── FETCH FORECAST ────────────────────────────────────────
-def get_forecast(symbol, interval="1d"):
+def get_forecast(symbol, interval="1h"):
     print(f"Fetching forecast for {symbol}...")
     r = requests.post(
         f"{API_URL}/forecast",
@@ -77,7 +77,7 @@ def get_forecast(symbol, interval="1d"):
     return None
 
 # ── GENERATE IMAGE ────────────────────────────────────────
-def generate_image(data, symbol):
+def generate_image(data, symbol, interval="1h"):
     W, H = 1080, 1080
     img = Image.new("RGB", (W, H), color="#060810")
     draw = ImageDraw.Draw(img)
@@ -297,7 +297,7 @@ def main():
         return
 
     # Generate image
-    image_bytes = generate_image(data, symbol)
+    image_bytes = generate_image(data, symbol, interval="1h")
     print(f"✅ Image generated ({len(image_bytes):,} bytes)")
 
     # Upload to imgbb
