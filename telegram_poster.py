@@ -95,7 +95,7 @@ def escape_md(text):
         text = text.replace(c, f'\\{c}')
     return text
 
-def format_message(data, symbol):
+def format_message(data, symbol, interval="1d"):
     last_close = data.get("last_close", 0)
     f_ma7  = data.get("forecast_ma7", [last_close]*60)
     acc_ma7 = data.get("accuracy_ma7", 0)
