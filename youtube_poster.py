@@ -17,6 +17,8 @@ YT_REFRESH_TOKEN  = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
 STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
 WATCHLIST        = CRYPTO_WATCHLIST if MODE == "crypto" else STOCK_WATCHLIST
+SITE_URL         = "https://zeusvisions.com" if MODE == "crypto" else "https://investleey.com"
+SITE_NAME        = "ZeusVisions" if MODE == "crypto" else "Investleey" 
 WEIGHTS          = [3,3,2,2,2,1,1,1,1,1] if len(WATCHLIST) == 10 else [3,3,3,2,2,2,1,1,1,1,1,1]
 
 
