@@ -6,65 +6,28 @@ import os, requests, random, json
 from datetime import datetime, timezone
 
 def get_signal(data, interval="1h"):
-    """
-    New signal logic:
-    - 1h and above: MA7 + MA3 (first vs 5th value, both must agree)
-    - 15m and below: VWAP200/Pink (first vs 5th value)
-    """
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
     last_close = data.get("last_close", 0)
-
     if is_short:
-        # 15m and below: use forecast_vwap200 (Pink VWAP-200)
         fv200 = data.get("forecast_vwap200", [])
         if fv200 and len(fv200) >= 5:
-            first = fv200[0]
-            fifth = fv200[4]
+            first, fifth = fv200[0], fv200[4]
             threshold = (last_close or first) * 0.0005
-            if abs(fifth - first) <= threshold:
-                return "NEUTRAL", "⚪", "●"
-            elif first < fifth:
-                return "BULLISH", "🟢", "📈"
-            else:
-                return "BEARISH", "🔴", "📉"
+            if abs(fifth - first) <= threshold: return "NEUTRAL", "⚪", "●"
+            elif first < fifth: return "BULLISH", "🟢", "📈"
+            else: return "BEARISH", "🔴", "📉"
     else:
-        # 1h and above: MA7 AND MA3 must agree
         fma7 = data.get("forecast_ma7", [])
         fma3 = data.get("forecast_ma3", [])
         if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
-            ma7_bull = fma7[0] < fma7[4]
-            ma7_bear = fma7[0] > fma7[4]
-            ma3_bull = fma3[0] < fma3[4]
-            ma3_bear = fma3[0] > fma3[4]
-            if ma7_bull and ma3_bull:
-                return "BULLISH", "🟢", "📈"
-            elif ma7_bear and ma3_bear:
-                return "BEARISH", "🔴", "📉"
-            else:
-                return "NEUTRAL", "⚪", "●"
+            if fma7[0] < fma7[4] and fma3[0] < fma3[4]: return "BULLISH", "🟢", "📈"
+            elif fma7[0] > fma7[4] and fma3[0] > fma3[4]: return "BEARISH", "🔴", "📉"
+            else: return "NEUTRAL", "⚪", "●"
     return "NEUTRAL", "⚪", "●"
 
 
-
-# ── CONFIG ────────────────────────────────────────────────
-FB_TOKEN   = os.environ["FB_PAGE_ACCESS_TOKEN"]
-FB_PAGE_ID = os.environ.get("FB_PAGE_ID") or "103114287835428"  # caishenshop
-API_URL    = os.environ.get("STOCK_API_URL") or "https://stockvision-production-ae61.up.railway.app"
-API_TOKEN  = os.environ.get("STOCK_API_TOKEN") or "mystockvision2025"
-print(f"Using API_URL: {API_URL}")
-print(f"FB_PAGE_ID: {os.environ.get(chr(70)+chr(66)+chr(95)+chr(80)+chr(65)+chr(71)+chr(69)+chr(95)+chr(73)+chr(68), chr(78)+chr(79)+chr(84)+chr(32)+chr(83)+chr(69)+chr(84))}")
-
-# Most active stocks to rotate through
-WATCHLIST = [
-    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL",
-    "META", "AMZN", "AMD", "NFLX", "JPM",
-    "SPY",  "QQQ",  "COIN", "MSTR", "ARM",
-    "V",    "BAC",  "XOM",  "PLTR", "SOFI",
-]
-
-# ── FETCH FORECAST ────────────────────────────────────────
-def get_forecast(symbol, interval="1d"):
+def get_forecast(symbol, interval="1h"):
     print(f"Fetching forecast for {symbol} {interval}...")
     r = requests.post(
         "https://stockvision-production-ae61.up.railway.app/forecast",
@@ -117,6 +80,7 @@ def format_post(data, symbol, interval="1h"):
     acc_vwap = data.get("accuracy_vwap600", 0)
 
     # Overall direction
+    interval = "1h"
     signal_name, signal_emoji, signal_arrow = get_signal(data, interval)
     outlook = f"{signal_name} {signal_emoji}"
 
@@ -188,11 +152,11 @@ def main():
     print(f"Selected: {symbol}")
 
     # Get forecast
-    data = get_forecast(symbol, interval="1d")
+    data = get_forecast(symbol, interval="1h")
     if not data:
         # Try fallback symbol
         symbol = "AAPL"
-        data = get_forecast(symbol, interval="1d")
+        data = get_forecast(symbol, interval="1h")
     if not data:
         print("❌ Could not get forecast. Exiting.")
         return
