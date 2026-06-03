@@ -14,6 +14,11 @@ YT_CLIENT_ID      = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YT_CLIENT_SECRET  = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 YT_REFRESH_TOKEN  = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 
+CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
+STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
+WATCHLIST        = CRYPTO_WATCHLIST if MODE == "crypto" else STOCK_WATCHLIST
+WEIGHTS          = [3,3,2,2,2,1,1,1,1,1] if len(WATCHLIST) == 10 else [3,3,3,2,2,2,1,1,1,1,1,1]
+
 
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
