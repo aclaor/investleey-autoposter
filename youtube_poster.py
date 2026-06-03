@@ -84,7 +84,7 @@ def get_access_token():
 def get_forecast(symbol):
     try:
         r = requests.post(f"{API_URL}/forecast",
-            json={"symbol": symbol, "interval": "1d"},
+            json={"symbol": symbol, "interval": "1h"},
             headers={"x-api-token": API_TOKEN},
             timeout=120)
         if r.status_code == 200:
