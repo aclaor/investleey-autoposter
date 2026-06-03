@@ -6,6 +6,15 @@ Run: python youtube_shorts.py
 import os, requests, random
 from datetime import datetime, timezone
 
+# ── CONFIG ────────────────────────────────────────────────
+MODE              = os.environ.get("MODE", "crypto")
+API_URL           = os.environ.get("CRYPTO_API_URL", os.environ.get("STOCK_API_URL", ""))
+API_TOKEN         = os.environ.get("CRYPTO_API_TOKEN", os.environ.get("STOCK_API_TOKEN", ""))
+YT_CLIENT_ID      = os.environ.get("YOUTUBE_CLIENT_ID", "")
+YT_CLIENT_SECRET  = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
+YT_REFRESH_TOKEN  = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
+
+
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
