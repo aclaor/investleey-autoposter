@@ -259,13 +259,8 @@ def post_to_instagram(image_url, caption):
 # ── FORMAT CAPTION ────────────────────────────────────────
 def format_caption(data, symbol):
     last_close = data.get("last_close", 0)
-    fc200 = data.get("forecast_vwap200", [])
-    signal = "NEUTRAL"
-    if fc200 and len(fc200) >= 3:
-        first, last = fc200[0], fc200[-1]
-        threshold = (last_close or first) * 0.001
-        if last > first + threshold: signal = "BULLISH 📈"
-        elif last < first - threshold: signal = "BEARISH 📉"
+    signal_name, signal_emoji, signal_arrow = get_signal(data, "1h")
+    signal = f"{signal_name} {signal_arrow}"
 
     acc = data.get("accuracy_ma7", 0)
     now = datetime.now(timezone.utc)
