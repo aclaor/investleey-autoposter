@@ -7,9 +7,9 @@ import os, requests, random, json, time, subprocess
 from datetime import datetime, timezone
 
 # ── CONFIG ────────────────────────────────────────────────
-MODE              = os.environ.get("MODE", "crypto")
-API_URL           = os.environ.get("CRYPTO_API_URL", os.environ.get("STOCK_API_URL", ""))
-API_TOKEN         = os.environ.get("CRYPTO_API_TOKEN", os.environ.get("STOCK_API_TOKEN", ""))
+MODE              = os.environ.get("MODE", os.environ.get("POST_MODE", "crypto"))
+API_URL           = os.environ.get("CRYPTO_API_URL", "") if os.environ.get("MODE", os.environ.get("POST_MODE","crypto")) == "crypto" else os.environ.get("STOCK_API_URL", "")
+API_TOKEN         = os.environ.get("CRYPTO_API_TOKEN", "") if os.environ.get("MODE", os.environ.get("POST_MODE","crypto")) == "crypto" else os.environ.get("STOCK_API_TOKEN", "")
 YT_CLIENT_ID      = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YT_CLIENT_SECRET  = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 YT_REFRESH_TOKEN  = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
