@@ -63,7 +63,7 @@ STOCK_SYMBOLS  = ["AAPL","NVDA","TSLA","GOOGL","META","AMZN","AMD","SPY"]
 def get_forecast(symbol, api_url, token):
     try:
         r = requests.post(f"{api_url}/forecast",
-            json={"symbol": symbol, "interval": "1d"},
+            json={"symbol": symbol, "interval": "1h"},
             headers={"x-api-token": token},
             timeout=60)
         if r.status_code == 200:
