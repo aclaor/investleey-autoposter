@@ -63,7 +63,7 @@ def get_forecast(symbol):
     try:
         r = requests.post(
             f"{CRYPTO_API_URL}/forecast",
-            json={"symbol": symbol, "interval": "1d"},
+            json={"symbol": symbol, "interval": "1h"},
             headers={"x-api-token": CRYPTO_TOKEN, "Content-Type": "application/json"},
             timeout=120
         )
