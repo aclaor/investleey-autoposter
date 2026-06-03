@@ -79,7 +79,7 @@ def get_forecast(symbol):
     print(f"Fetching {symbol}...")
     try:
         r = requests.post(f"{API_URL}/forecast",
-            json={"symbol": symbol, "interval": "1d"},
+            json={"symbol": symbol, "interval": "1h"},
             headers={"x-api-token": API_TOKEN, "Content-Type": "application/json"},
             timeout=120)
         if r.status_code == 200:
@@ -95,7 +95,7 @@ def escape_md(text):
         text = text.replace(c, f'\\{c}')
     return text
 
-def format_message(data, symbol, interval="1d"):
+def format_message(data, symbol, interval="1h"):
     last_close = data.get("last_close", 0)
     f_ma7  = data.get("forecast_ma7", [last_close]*60)
     acc_ma7 = data.get("accuracy_ma7", 0)
