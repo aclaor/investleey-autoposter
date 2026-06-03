@@ -6,81 +6,27 @@ import os, requests, random, json, webbrowser
 from datetime import datetime, timezone
 
 def get_signal(data, interval="1h"):
-    """
-    New signal logic:
-    - 1h and above: MA7 + MA3 (first vs 5th value, both must agree)
-    - 15m and below: VWAP200/Pink (first vs 5th value)
-    """
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
     last_close = data.get("last_close", 0)
-
     if is_short:
-        # 15m and below: use forecast_vwap200 (Pink VWAP-200)
         fv200 = data.get("forecast_vwap200", [])
         if fv200 and len(fv200) >= 5:
-            first = fv200[0]
-            fifth = fv200[4]
+            first, fifth = fv200[0], fv200[4]
             threshold = (last_close or first) * 0.0005
-            if abs(fifth - first) <= threshold:
-                return "NEUTRAL", "⚪", "●"
-            elif first < fifth:
-                return "BULLISH", "🟢", "📈"
-            else:
-                return "BEARISH", "🔴", "📉"
+            if abs(fifth - first) <= threshold: return "NEUTRAL", "⚪", "●"
+            elif first < fifth: return "BULLISH", "🟢", "📈"
+            else: return "BEARISH", "🔴", "📉"
     else:
-        # 1h and above: MA7 AND MA3 must agree
         fma7 = data.get("forecast_ma7", [])
         fma3 = data.get("forecast_ma3", [])
         if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
-            ma7_bull = fma7[0] < fma7[4]
-            ma7_bear = fma7[0] > fma7[4]
-            ma3_bull = fma3[0] < fma3[4]
-            ma3_bear = fma3[0] > fma3[4]
-            if ma7_bull and ma3_bull:
-                return "BULLISH", "🟢", "📈"
-            elif ma7_bear and ma3_bear:
-                return "BEARISH", "🔴", "📉"
-            else:
-                return "NEUTRAL", "⚪", "●"
+            if fma7[0] < fma7[4] and fma3[0] < fma3[4]: return "BULLISH", "🟢", "📈"
+            elif fma7[0] > fma7[4] and fma3[0] > fma3[4]: return "BEARISH", "🔴", "📉"
+            else: return "NEUTRAL", "⚪", "●"
     return "NEUTRAL", "⚪", "●"
 
 
-
-# ── CONFIG ────────────────────────────────────────────────
-MODE = os.environ.get("POST_MODE", "stocks")
-LI_PERSON_ID = os.environ.get("LI_PERSON_ID", "")  # Global - works across all modes
-
-if MODE == "crypto":
-    LI_CLIENT_ID     = os.environ["LI_CLIENT_ID_CRYPTO"]
-    LI_CLIENT_SECRET = os.environ["LI_CLIENT_SECRET_CRYPTO"]
-    LI_ACCESS_TOKEN  = os.environ["LI_ACCESS_TOKEN_CRYPTO"]
-    LI_ORG_ID        = os.environ["LI_ORG_ID_CRYPTO"]
-    API_URL          = "https://cryptovision-production-ca20.up.railway.app"
-    API_TOKEN        = "mycryptovision2025"
-    SITE_URL         = "https://zeusvisions.com"
-    WATCHLIST        = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT",
-                        "DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
-    WEIGHTS          = [4,3,3,2,2,1,1,1,1,1]
-else:
-    LI_CLIENT_ID     = os.environ["LI_CLIENT_ID_STOCKS"]
-    LI_CLIENT_SECRET = os.environ["LI_CLIENT_SECRET_STOCKS"]
-    LI_ACCESS_TOKEN  = os.environ["LI_ACCESS_TOKEN_STOCKS"]
-    LI_ORG_ID        = os.environ["LI_ORG_ID_STOCKS"]
-    API_URL          = "https://stockvision-production-ae61.up.railway.app"
-    API_TOKEN        = "mystockvision2025"
-    SITE_URL         = "https://investleey.com"
-    WATCHLIST        = ["AAPL","MSFT","NVDA","TSLA","GOOGL",
-                        "META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
-    WEIGHTS          = [3,3,3,3,2,2,2,2,1,1,1,1]
-
-HEADERS = {
-    "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
-    "Content-Type": "application/json",
-    "X-Restli-Protocol-Version": "2.0.0"
-}
-
-# ── FETCH FORECAST ────────────────────────────────────────
 def get_forecast(symbol):
     print(f"Fetching {symbol}...")
     try:
