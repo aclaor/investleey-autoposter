@@ -78,7 +78,7 @@ def get_forecast(symbol, interval="1d"):
     return None
 
 # ── FORMAT POST ───────────────────────────────────────────
-def format_post(data, symbol):
+def format_post(data, symbol, interval="1h"):
     last_close = data.get("last_close", 0)
     plan       = data.get("plan", "pro")
     now        = datetime.now(timezone.utc)
@@ -198,7 +198,7 @@ def main():
         return
 
     # Format and post
-    message = format_post(data, symbol)
+    message = format_post(data, symbol, interval="1h")
     print("\n--- POST PREVIEW ---")
     print(message)
     print("--- END PREVIEW ---\n")
