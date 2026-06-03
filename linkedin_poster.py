@@ -95,7 +95,7 @@ def get_forecast(symbol):
     return None
 
 # ── FORMAT POST ───────────────────────────────────────────
-def format_post(data, symbol):
+def format_post(data, symbol, interval="1d"):
     last_close = data.get("last_close", 0)
     f_ma7      = data.get("forecast_ma7", [last_close]*60)
     acc_ma7    = data.get("accuracy_ma7", 0)
@@ -349,7 +349,7 @@ def main():
         print("No data")
         return
 
-    text = format_post(data, symbol)
+    text = format_post(data, symbol, interval="1d")
     print(f"Post preview:\n{text[:150]}...")
 
     image_path = take_screenshot(symbol)
