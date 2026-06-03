@@ -17,6 +17,7 @@ WEIGHTS   = [3,3,2,2,2,1,1,1,1,1] if len(WATCHLIST)==10 else [3,3,3,2,2,2,1,1,1,
 SITE_URL  = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
 SITE_NAME        = "ZeusVisions" if MODE=="crypto" else "Investleey"
 DISCORD_BOT_TOKEN = _os.environ.get("DISCORD_BOT_TOKEN", "")
+HEADERS           = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}", "Content-Type": "application/json"}
 CHANNEL_ID        = _os.environ.get("DISCORD_CRYPTO_CHANNEL", "") if MODE=="crypto" else _os.environ.get("DISCORD_STOCK_CHANNEL", "")
 
 
