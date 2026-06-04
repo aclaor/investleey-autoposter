@@ -14,17 +14,16 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: |
-          pip install requests playwright pillow
-          playwright install chromium --with-deps
+        run: pip install requests
       - name: Post stocks to LinkedIn
         env:
-          LI_CLIENT_ID_STOCKS: ${{ secrets.LI_CLIENT_ID_STOCKS }}
-          LI_CLIENT_SECRET_STOCKS: ${{ secrets.LI_CLIENT_SECRET_STOCKS }}
+          MODE: stocks
+          POST_MODE: stocks
+          STOCK_API_URL: ${{ secrets.STOCK_API_URL }}
+          STOCK_API_TOKEN: ${{ secrets.STOCK_API_TOKEN }}
           LI_ACCESS_TOKEN_STOCKS: ${{ secrets.LI_ACCESS_TOKEN_STOCKS }}
           LI_ORG_ID_STOCKS: ${{ secrets.LI_ORG_ID_STOCKS }}
           LI_PERSON_ID: ${{ secrets.LI_PERSON_ID }}
-          POST_MODE: stocks
         run: python linkedin_poster.py
 
   post-crypto:
@@ -36,15 +35,14 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: |
-          pip install requests playwright pillow
-          playwright install chromium --with-deps
+        run: pip install requests
       - name: Post crypto to LinkedIn
         env:
-          LI_CLIENT_ID_CRYPTO: ${{ secrets.LI_CLIENT_ID_CRYPTO }}
-          LI_CLIENT_SECRET_CRYPTO: ${{ secrets.LI_CLIENT_SECRET_CRYPTO }}
+          MODE: crypto
+          POST_MODE: crypto
+          CRYPTO_API_URL: ${{ secrets.CRYPTO_API_URL }}
+          CRYPTO_API_TOKEN: ${{ secrets.CRYPTO_API_TOKEN }}
           LI_ACCESS_TOKEN_CRYPTO: ${{ secrets.LI_ACCESS_TOKEN_CRYPTO }}
           LI_ORG_ID_CRYPTO: ${{ secrets.LI_ORG_ID_CRYPTO }}
           LI_PERSON_ID: ${{ secrets.LI_PERSON_ID }}
-          POST_MODE: crypto
         run: python linkedin_poster.py
