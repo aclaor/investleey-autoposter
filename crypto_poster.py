@@ -113,7 +113,18 @@ def post_to_facebook(message):
     return False
 
 def main():
-    weights = [4,3,3,2,2,1,1,1,1,1,1,1,1,1,1]
+    import os as _os
+    _mode = _os.environ.get("MODE", _os.environ.get("POST_MODE", "crypto"))
+    _api_url = _os.environ.get("CRYPTO_API_URL", "") if _mode=="crypto" else _os.environ.get("STOCK_API_URL", "")
+    _api_token = _os.environ.get("CRYPTO_API_TOKEN", "") if _mode=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
+    global MODE, API_URL, API_TOKEN, WATCHLIST, SITE_URL, SITE_NAME
+    MODE = _mode
+    API_URL = _api_url
+    API_TOKEN = _api_token
+    WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"] if MODE=="crypto" else ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
+    SITE_URL = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
+    SITE_NAME = "ZeusVisions" if MODE=="crypto" else "Investleey" 
+    weights = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
     symbol = random.choices(WATCHLIST, weights=weights, k=1)[0]
     print(f"Selected: {symbol}")
     data = get_forecast(symbol) or get_forecast("BTCUSDT")
