@@ -7,6 +7,33 @@ from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
 
+# ── FULL CONFIG ───────────────────────────────────────────
+import os as _os
+MODE              = _os.environ.get("MODE", _os.environ.get("POST_MODE", "crypto"))
+API_URL           = _os.environ.get("CRYPTO_API_URL", "") if MODE=="crypto" else _os.environ.get("STOCK_API_URL", "")
+API_TOKEN         = _os.environ.get("CRYPTO_API_TOKEN", "") if MODE=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
+FB_TOKEN          = _os.environ.get("FB_PAGE_ACCESS_TOKEN", "")
+FB_PAGE_ID        = _os.environ.get("FB_PAGE_ID", "103114287835428")
+IG_USER_ID        = _os.environ.get("IG_USER_ID", "17841436490185424")
+IMGBB_KEY         = _os.environ.get("IMGBB_API_KEY", "72e357126560d58d7ae925855456fd50")
+DISCORD_BOT_TOKEN = _os.environ.get("DISCORD_BOT_TOKEN", "")
+CHANNEL_ID        = _os.environ.get("DISCORD_CRYPTO_CHANNEL", "") if MODE=="crypto" else _os.environ.get("DISCORD_STOCK_CHANNEL", "")
+HEADERS           = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}", "Content-Type": "application/json"}
+TG_BOT_TOKEN      = _os.environ.get("TELEGRAM_BOT_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("TELEGRAM_BOT_TOKEN_STOCKS", "")
+TG_CHANNEL        = _os.environ.get("TELEGRAM_CRYPTO_CHANNEL", "") if MODE=="crypto" else _os.environ.get("TELEGRAM_STOCK_CHANNEL", "")
+LI_TOKEN          = _os.environ.get("LI_ACCESS_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("LI_ACCESS_TOKEN_STOCKS", "")
+LI_ORG_ID         = _os.environ.get("LI_ORG_ID_CRYPTO", "117744639") if MODE=="crypto" else _os.environ.get("LI_ORG_ID_STOCKS", "117924319")
+LI_PERSON_ID      = _os.environ.get("LI_PERSON_ID", "")
+YT_CLIENT_ID      = _os.environ.get("YOUTUBE_CLIENT_ID", "")
+YT_CLIENT_SECRET  = _os.environ.get("YOUTUBE_CLIENT_SECRET", "")
+YT_REFRESH_TOKEN  = _os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
+CRYPTO_WATCHLIST  = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
+STOCK_WATCHLIST   = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
+WATCHLIST         = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
+WEIGHTS           = [3,3,2,2,2,1,1,1,1,1] if len(WATCHLIST)==10 else [3,3,3,2,2,2,1,1,1,1,1,1]
+SITE_URL          = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
+SITE_NAME         = "ZeusVisions" if MODE=="crypto" else "Investleey"
+
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
@@ -27,6 +54,7 @@ def get_signal(data, interval="1h"):
             elif fma7[0] > fma7[4] and fma3[0] > fma3[4]: return "BEARISH", "🔴", "📉"
             else: return "NEUTRAL", "⚪", "●"
     return "NEUTRAL", "⚪", "●"
+
 
 
 def get_forecast(symbol, interval="1h"):
