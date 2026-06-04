@@ -252,7 +252,7 @@ def post_to_instagram(image_url, caption):
     return False
 
 # ── FORMAT CAPTION ────────────────────────────────────────
-def format_caption(data, symbol):
+def format_caption(data, symbol, interval="1h"):
     last_close = data.get("last_close", 0)
     signal_name, signal_emoji, signal_arrow = get_signal(data, "1h")
     signal = f"{signal_name} {signal_arrow}"
