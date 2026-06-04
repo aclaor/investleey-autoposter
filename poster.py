@@ -5,6 +5,19 @@ Posts AI stock forecasts to Facebook page every 4 hours
 import os, requests, random, json
 from datetime import datetime, timezone
 
+import os as _os
+MODE       = _os.environ.get("MODE", _os.environ.get("POST_MODE", "stocks"))
+API_URL    = _os.environ.get("CRYPTO_API_URL", "") if MODE=="crypto" else _os.environ.get("STOCK_API_URL", "")
+API_TOKEN  = _os.environ.get("CRYPTO_API_TOKEN", "") if MODE=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
+FB_TOKEN   = _os.environ.get("FB_PAGE_ACCESS_TOKEN", "")
+FB_PAGE_ID = _os.environ.get("FB_PAGE_ID", "103114287835428")
+CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
+STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
+WATCHLIST  = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
+SITE_URL   = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
+SITE_NAME  = "ZeusVisions" if MODE=="crypto" else "Investleey"
+
+
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
@@ -147,7 +160,7 @@ def post_to_facebook(message):
 # ── MAIN ──────────────────────────────────────────────────
 def main():
     # Pick a random stock, weighted toward high-volume ones
-    weights = [3,3,3,3,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1]
+    weights = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
     symbol = random.choices(WATCHLIST, weights=weights, k=1)[0]
     print(f"Selected: {symbol}")
 
