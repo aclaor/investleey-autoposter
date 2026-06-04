@@ -5,6 +5,21 @@ Posts AI forecast updates to LinkedIn Company Pages
 import os, requests, random, json, webbrowser
 from datetime import datetime, timezone
 
+import os as _os
+MODE       = _os.environ.get("MODE", _os.environ.get("POST_MODE", "stocks"))
+API_URL    = _os.environ.get("CRYPTO_API_URL", "") if MODE=="crypto" else _os.environ.get("STOCK_API_URL", "")
+API_TOKEN  = _os.environ.get("CRYPTO_API_TOKEN", "") if MODE=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
+LI_TOKEN   = _os.environ.get("LI_ACCESS_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("LI_ACCESS_TOKEN_STOCKS", "")
+LI_ORG_ID  = _os.environ.get("LI_ORG_ID_CRYPTO", "117744639") if MODE=="crypto" else _os.environ.get("LI_ORG_ID_STOCKS", "117924319")
+LI_PERSON_ID = _os.environ.get("LI_PERSON_ID", "")
+CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
+STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
+WATCHLIST  = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
+WEIGHTS = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
+SITE_URL   = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
+SITE_NAME  = "ZeusVisions" if MODE=="crypto" else "Investleey"
+
+
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
     is_short = interval in short_intervals
