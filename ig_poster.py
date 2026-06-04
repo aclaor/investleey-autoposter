@@ -274,7 +274,7 @@ def format_caption(data, symbol):
 
 # ── MAIN ──────────────────────────────────────────────────
 def main():
-    weights = [3,3,3,3,2,2,2,2,2,1,1,1,1,1,1]
+    weights = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
     symbol = random.choices(WATCHLIST, weights=weights, k=1)[0]
     print(f"Selected: {symbol}")
 
