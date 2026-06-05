@@ -1,0 +1,28 @@
+name: Daily Stock Result Checker
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # Every day at 9pm UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run stock result checker
+        env:
+          STOCK_API_URL: ${{ secrets.STOCK_API_URL }}
+          STOCK_API_TOKEN: ${{ secrets.STOCK_API_TOKEN }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          TELEGRAM_BOT_TOKEN_STOCKS: ${{ secrets.TELEGRAM_BOT_TOKEN_STOCKS }}
+          TELEGRAM_STOCK_CHANNEL: ${{ secrets.TELEGRAM_STOCK_CHANNEL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_STOCK_CHANNEL: ${{ secrets.DISCORD_STOCK_CHANNEL }}
+        run: python result_checker_stocks.py
