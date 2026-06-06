@@ -186,40 +186,78 @@ def take_screenshot(symbol):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            page = browser.new_page(viewport={"width": 1200, "height": 627})
+            # Use 1280x800 viewport - standard desktop
+            page = browser.new_page(viewport={"width": 1280, "height": 800})
             page.goto(SITE_URL, wait_until="networkidle", timeout=30000)
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(3000)
+
+            # Hide non-essential UI elements
             page.evaluate("""() => {
-                const hide = [".ob-panel",".right-panel","#bottom-section",
-                    ".ticker-bar",".topbar",".pair-header",".trades-panel",
-                    "#crypto-market-overview","#faq-section",".bottom-bar",
-                    "#signup-popup",".pricing-modal",".modal-overlay"];
-                hide.forEach(sel => document.querySelectorAll(sel).forEach(el => el.style.display="none"));
-                const chart = document.querySelector(".chart-area");
-                if(chart){ chart.style.height="550px"; chart.style.minHeight="550px"; }
-                const panel = document.querySelector(".chart-panel");
-                if(panel) panel.style.height="627px";
+                const hide = [
+                    ".ticker-bar", "#bottom-section", "#faq-section",
+                    ".bottom-bar", ".pricing-modal", ".modal-overlay",
+                    "#signup-popup", ".trades-panel", ".ob-panel",
+                    "#crypto-market-overview"
+                ];
+                hide.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        if(el) el.style.display = "none";
+                    });
+                });
             }""")
+
+            # Type symbol and run forecast
             inp = page.query_selector("#pair-input")
             if inp:
                 inp.fill("")
                 inp.type(symbol)
+
             btn = page.query_selector(".run-btn")
             if btn: btn.click()
+
+            # Wait for forecast to complete
             try:
                 page.wait_for_function(
-                    "() => { const o = document.getElementById(\'chart-overlay\'); return o && o.classList.contains(\'hidden\'); }",
-                    timeout=60000)
-            except: pass
+                    """() => {
+                        const o = document.getElementById("chart-overlay");
+                        return o && o.classList.contains("hidden");
+                    }""",
+                    timeout=90000
+                )
+            except:
+                print("Timeout waiting for chart - taking screenshot anyway")
+
             page.wait_for_timeout(4000)
+
+            # Screenshot just the chart panel element
+            chart = page.query_selector(".chart-panel")
+            if chart:
+                path = "/tmp/li_chart.png"
+                chart.screenshot(path=path)
+                print(f"✅ Chart screenshot saved!")
+                browser.close()
+                return path
+
+            # Fallback: screenshot left panel (chart area)
+            left = page.query_selector(".left-panel")
+            if left:
+                path = "/tmp/li_chart.png"
+                left.screenshot(path=path)
+                print(f"✅ Left panel screenshot saved!")
+                browser.close()
+                return path
+
+            # Last resort: full page screenshot
             path = "/tmp/li_chart.png"
-            page.screenshot(path=path, clip={"x": 0, "y": 0, "width": 1200, "height": 627})
+            page.screenshot(path=path, full_page=False)
+            print(f"✅ Full page screenshot saved!")
             browser.close()
-            print("✅ Screenshot saved!")
             return path
+
     except Exception as e:
         print(f"Screenshot error: {e}")
     return None
+
 
 def main():
     symbol = random.choices(WATCHLIST, weights=WEIGHTS, k=1)[0]
