@@ -164,7 +164,11 @@ def main():
         return
     message = format_post(data, symbol, interval="1h")
     print(message[:300])
+    # Try screenshot with actual symbol, fallback to BTCUSDT if fails
     image_path = take_screenshot(symbol)
+    if not image_path:
+        print("Retrying screenshot with BTCUSDT...")
+        image_path = take_screenshot("BTCUSDT")
     image_url = upload_to_imgbb(image_path) if image_path else None
     post_to_facebook(message, image_url)
 
