@@ -14,7 +14,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
       - name: Post stocks to LinkedIn
         env:
           MODE: stocks
@@ -35,7 +37,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
       - name: Post crypto to LinkedIn
         env:
           MODE: crypto
