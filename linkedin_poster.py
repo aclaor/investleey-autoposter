@@ -2,39 +2,23 @@
 ZEUSVision + Investleey LinkedIn Auto-Poster
 Posts AI forecast updates to LinkedIn Company Pages
 """
-import os, requests, random, json, webbrowser
+import os, requests, random, json
 from datetime import datetime, timezone
-
 import os as _os
 
-import os as _os
+# ── CONFIG ────────────────────────────────────────────────
 MODE             = _os.environ.get("MODE", _os.environ.get("POST_MODE", "stocks"))
 API_URL          = _os.environ.get("CRYPTO_API_URL", "") if MODE=="crypto" else _os.environ.get("STOCK_API_URL", "")
 API_TOKEN        = _os.environ.get("CRYPTO_API_TOKEN", "") if MODE=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
-LI_TOKEN         = _os.environ.get("LI_ACCESS_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("LI_ACCESS_TOKEN_STOCKS", "")
-LI_ACCESS_TOKEN  = LI_TOKEN
+LI_ACCESS_TOKEN  = _os.environ.get("LI_ACCESS_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("LI_ACCESS_TOKEN_STOCKS", "")
 LI_ORG_ID        = _os.environ.get("LI_ORG_ID_CRYPTO", "117744639") if MODE=="crypto" else _os.environ.get("LI_ORG_ID_STOCKS", "117924319")
 LI_PERSON_ID     = _os.environ.get("LI_PERSON_ID", "")
 CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
 STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
 WATCHLIST        = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
-WEIGHTS = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
+WEIGHTS          = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
 SITE_URL         = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
 SITE_NAME        = "ZeusVisions" if MODE=="crypto" else "Investleey"
-
-MODE       = _os.environ.get("MODE", _os.environ.get("POST_MODE", "stocks"))
-API_URL    = _os.environ.get("CRYPTO_API_URL", "") if MODE=="crypto" else _os.environ.get("STOCK_API_URL", "")
-API_TOKEN  = _os.environ.get("CRYPTO_API_TOKEN", "") if MODE=="crypto" else _os.environ.get("STOCK_API_TOKEN", "")
-LI_TOKEN   = _os.environ.get("LI_ACCESS_TOKEN_CRYPTO", "") if MODE=="crypto" else _os.environ.get("LI_ACCESS_TOKEN_STOCKS", "")
-LI_ORG_ID  = _os.environ.get("LI_ORG_ID_CRYPTO", "117744639") if MODE=="crypto" else _os.environ.get("LI_ORG_ID_STOCKS", "117924319")
-LI_PERSON_ID = _os.environ.get("LI_PERSON_ID", "")
-CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
-STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
-WATCHLIST  = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
-WEIGHTS = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
-SITE_URL   = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
-SITE_NAME  = "ZeusVisions" if MODE=="crypto" else "Investleey"
-
 
 def get_signal(data, interval="1h"):
     short_intervals = ["1m", "5m", "15m"]
@@ -57,7 +41,6 @@ def get_signal(data, interval="1h"):
             else: return "NEUTRAL", "⚪", "●"
     return "NEUTRAL", "⚪", "●"
 
-
 def get_forecast(symbol):
     print(f"Fetching {symbol}...")
     try:
@@ -71,56 +54,40 @@ def get_forecast(symbol):
         print(f"Forecast error: {e}")
     return None
 
-# ── FORMAT POST ───────────────────────────────────────────
 def format_post(data, symbol, interval="1h"):
     last_close = data.get("last_close", 0)
     f_ma7      = data.get("forecast_ma7", [last_close]*60)
     acc_ma7    = data.get("accuracy_ma7", 0)
     acc_ma25   = data.get("accuracy_ma25", 0)
-
-    ma7_1h     = f_ma7[0] if f_ma7 else last_close
     signal_name, signal_emoji, signal_arrow = get_signal(data, interval)
-    is_bullish = signal_name == "BULLISH"
     signal     = f"{signal_name} {signal_arrow}"
     pct_7      = ((f_ma7[6] - last_close) / last_close * 100) if last_close and len(f_ma7)>6 else 0
     target_7   = f_ma7[6] if len(f_ma7)>6 else last_close
     pct_sign   = "+" if pct_7 >= 0 else ""
-
     if MODE == "crypto":
         display = symbol.replace("USDT", "/USDT")
         tags = "#Crypto #Bitcoin #CryptoTrading #AITrading #BlockChain #Web3"
-        cta = f"🚀 Try ZEUS-AI free at {SITE_URL} — 500+ crypto pairs, 15-day free trial"
+        cta = f"🚀 Try ZEUS-AI free at {SITE_URL} — 500+ crypto pairs"
     else:
         display = symbol
         tags = "#Stocks #Investing #WallStreet #StockMarket #Finance #AITrading"
-        cta = f"🚀 Try ZEUS-AI free at {SITE_URL} — 500+ US stocks & ETFs, 15-day free trial"
-
-    now = datetime.now(timezone.utc).strftime('%B %d, %Y')
-
+        cta = f"🚀 Try ZEUS-AI free at {SITE_URL} — 500+ US stocks & ETFs"
+    now = datetime.now(timezone.utc).strftime("%B %d, %Y")
     text = f"""⚡ ZEUS-AI Forecast Update — {display} | {now}
-
-Our proprietary AI just analyzed {display} and here's what it sees:
-
+Our proprietary AI just analyzed {display} and here\'s what it sees:
 📊 Current Price: ${last_close:,.2f}
 🎯 Signal: {signal}
 📈 7-Day Target: ${target_7:,.2f} ({pct_sign}{pct_7:.1f}%)
 🤖 AI Accuracy: {acc_ma7:.1f}% (MA-7) | {acc_ma25:.1f}% (MA-25)
-
 Our deep learning models are trained on millions of candlesticks to detect price patterns invisible to the human eye.
-
 {cta}
-
 {tags}"""
-
     return text
 
-# ── UPLOAD IMAGE ──────────────────────────────────────────
 def get_person_urn():
-    """Get person URN from env or LinkedIn API"""
     if LI_PERSON_ID:
         print(f"Using person ID: {LI_PERSON_ID[:4]}*** (urn:li:person:{LI_PERSON_ID})")
         return f"urn:li:person:{LI_PERSON_ID}"
-    # Fallback: try userinfo endpoint
     headers = {"Authorization": f"Bearer {LI_ACCESS_TOKEN}"}
     r = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers)
     if r.status_code == 200:
@@ -129,62 +96,39 @@ def get_person_urn():
     return None
 
 def upload_image_to_linkedin(image_path):
-    """Upload image to LinkedIn using newer Images API"""
     person_urn = get_person_urn()
-    if not person_urn:
-        return None
-
+    if not person_urn: return None
     headers = {
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
     }
-
-    # Step 1: Register upload (v2 assets API - no versioning needed)
-    register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
     register_body = {
         "registerUploadRequest": {
             "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
             "owner": person_urn,
-            "serviceRelationships": [{
-                "relationshipType": "OWNER",
-                "identifier": "urn:li:userGeneratedContent"
-            }]
+            "serviceRelationships": [{"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}]
         }
     }
-    r1 = requests.post(register_url,
-        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
-                 "Content-Type": "application/json",
-                 "X-Restli-Protocol-Version": "2.0.0"},
-        json=register_body)
+    r1 = requests.post("https://api.linkedin.com/v2/assets?action=registerUpload",
+        headers=headers, json=register_body)
     if r1.status_code not in [200, 201]:
         print(f"Image register failed: {r1.status_code} {r1.text[:200]}")
         return None
-
     value = r1.json().get("value", {})
     upload_url = value.get("uploadMechanism", {}).get(
         "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {}).get("uploadUrl")
     asset = value.get("asset")
-
-    if not upload_url or not asset:
-        print(f"No upload URL or asset: {value}")
-        return None
-
-    # Step 2: Upload image bytes
+    if not upload_url or not asset: return None
     with open(image_path, "rb") as f:
         img_data = f.read()
-
     r2 = requests.put(upload_url, data=img_data,
-        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}",
-                 "Content-Type": "image/png"})
-
+        headers={"Authorization": f"Bearer {LI_ACCESS_TOKEN}", "Content-Type": "image/png"})
     if r2.status_code in [200, 201]:
-        print(f"Image uploaded! Asset: {asset}")
+        print(f"✅ Image uploaded! Asset: {asset}")
         return asset
-    else:
-        print(f"Image upload failed: {r2.status_code} {r2.text[:200]}")
-        return None
-
+    print(f"Image upload failed: {r2.status_code}")
+    return None
 
 def post_to_linkedin(text, image_path=None):
     person_urn = get_person_urn()
@@ -192,32 +136,19 @@ def post_to_linkedin(text, image_path=None):
         print("❌ Could not get person URN")
         return False
     print(f"Posting as: {person_urn}")
-
     headers = {
         "Authorization": f"Bearer {LI_ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0"
     }
-
-    # Try ugcPosts first
-    if image_path:
-        asset = upload_image_to_linkedin(image_path)
-    else:
-        asset = None
-
-    # Build body for ugcPosts
+    asset = upload_image_to_linkedin(image_path) if image_path else None
     if asset:
-        media = [{
-            "status": "READY",
-            "description": {"text": "ZEUS-AI Forecast"},
-            "media": asset,
-            "title": {"text": "AI Forecast"}
-        }]
+        media = [{"status": "READY", "description": {"text": "ZEUS-AI Forecast"},
+                  "media": asset, "title": {"text": "AI Forecast"}}]
         share_category = "IMAGE"
     else:
         media = []
         share_category = "NONE"
-
     body = {
         "author": person_urn,
         "lifecycleState": "PUBLISHED",
@@ -230,17 +161,12 @@ def post_to_linkedin(text, image_path=None):
         },
         "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
     }
-
-    r = requests.post("https://api.linkedin.com/v2/ugcPosts",
-        headers=headers, json=body)
-
+    r = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=headers, json=body)
     if r.status_code in [200, 201]:
-        print(f"✅ Posted to LinkedIn!")
+        print("✅ Posted to LinkedIn!")
         return True
-
     print(f"ugcPosts failed {r.status_code}: {r.text[:200]}")
-
-    # Fallback: try /v2/shares API
+    # Fallback shares API
     share_body = {
         "content": {"contentEntities": [], "title": text[:200]},
         "distribution": {"linkedInDistributionTarget": {}},
@@ -248,75 +174,56 @@ def post_to_linkedin(text, image_path=None):
         "text": {"text": text[:3000]},
         "subject": "AI Forecast"
     }
-    r2 = requests.post("https://api.linkedin.com/v2/shares",
-        headers=headers, json=share_body)
-
+    r2 = requests.post("https://api.linkedin.com/v2/shares", headers=headers, json=share_body)
     if r2.status_code in [200, 201]:
-        print(f"✅ Posted via shares API!")
+        print("✅ Posted via shares API!")
         return True
-
     print(f"shares API also failed {r2.status_code}: {r2.text[:200]}")
     return False
-
 
 def take_screenshot(symbol):
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            # LinkedIn optimal image size: 1200x627
             page = browser.new_page(viewport={"width": 1200, "height": 627})
-            page.goto(SITE_URL, wait_until='networkidle', timeout=30000)
+            page.goto(SITE_URL, wait_until="networkidle", timeout=30000)
             page.wait_for_timeout(2000)
-            # Hide non-chart elements for clean look
             page.evaluate("""() => {
-                const hide = [
-                    '.ob-panel', '.right-panel', '#bottom-section',
-                    '.ticker-bar', '.topbar', '.pair-header',
-                    '.trades-panel', '#crypto-market-overview',
-                    '#faq-section', '.bottom-bar', '#signup-popup',
-                    '.chart-signup-banner', '#chart-signup-banner',
-                    '.pricing-modal', '.modal-overlay'
-                ];
-                hide.forEach(sel => {
-                    document.querySelectorAll(sel).forEach(el => el.style.display='none');
-                });
-                // Make chart fill the screen
-                const layout = document.querySelector('.main-layout');
-                if(layout) layout.style.gridTemplateColumns = '1fr';
-                const chart = document.querySelector('.chart-area');
-                if(chart) { chart.style.height = '550px'; chart.style.minHeight = '550px'; }
-                const panel = document.querySelector('.chart-panel');
-                if(panel) panel.style.height = '627px';
+                const hide = [".ob-panel",".right-panel","#bottom-section",
+                    ".ticker-bar",".topbar",".pair-header",".trades-panel",
+                    "#crypto-market-overview","#faq-section",".bottom-bar",
+                    "#signup-popup",".pricing-modal",".modal-overlay"];
+                hide.forEach(sel => document.querySelectorAll(sel).forEach(el => el.style.display="none"));
+                const chart = document.querySelector(".chart-area");
+                if(chart){ chart.style.height="550px"; chart.style.minHeight="550px"; }
+                const panel = document.querySelector(".chart-panel");
+                if(panel) panel.style.height="627px";
             }""")
-            inp = page.query_selector('#pair-input')
+            inp = page.query_selector("#pair-input")
             if inp:
-                inp.fill('')
+                inp.fill("")
                 inp.type(symbol)
-            btn = page.query_selector('.run-btn')
-            if btn:
-                btn.click()
+            btn = page.query_selector(".run-btn")
+            if btn: btn.click()
             try:
                 page.wait_for_function(
-                    "() => { const o = document.getElementById('chart-overlay'); return o && o.classList.contains('hidden'); }",
-                    timeout=60000
-                )
+                    "() => { const o = document.getElementById(\'chart-overlay\'); return o && o.classList.contains(\'hidden\'); }",
+                    timeout=60000)
             except: pass
             page.wait_for_timeout(4000)
-            path = '/tmp/li_chart.png'
+            path = "/tmp/li_chart.png"
             page.screenshot(path=path, clip={"x": 0, "y": 0, "width": 1200, "height": 627})
             browser.close()
-            print(f"Screenshot saved!")
+            print("✅ Screenshot saved!")
             return path
     except Exception as e:
         print(f"Screenshot error: {e}")
     return None
 
-
 def main():
     symbol = random.choices(WATCHLIST, weights=WEIGHTS, k=1)[0]
     print(f"Mode: {MODE} | Symbol: {symbol}")
-
     data = get_forecast(symbol)
     if not data:
         backup = "BTCUSDT" if MODE == "crypto" else "AAPL"
@@ -325,10 +232,8 @@ def main():
     if not data:
         print("No data")
         return
-
     text = format_post(data, symbol, interval="1h")
     print(f"Post preview:\n{text[:150]}...")
-
     image_path = take_screenshot(symbol)
     post_to_linkedin(text, image_path)
 
