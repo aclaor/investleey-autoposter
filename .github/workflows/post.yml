@@ -6,35 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  post-stocks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install requests pillow
-      - name: Post stocks to Facebook
-        env:
-          MODE: stocks
-          POST_MODE: stocks
-          STOCK_API_URL: ${{ secrets.STOCK_API_URL }}
-          STOCK_API_TOKEN: ${{ secrets.STOCK_API_TOKEN }}
-          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-        run: python poster.py
-
   post-crypto:
     runs-on: ubuntu-latest
-    needs: post-stocks
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install requests pillow
+        run: |
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
       - name: Post crypto to Facebook
         env:
           MODE: crypto
@@ -43,4 +25,28 @@ jobs:
           CRYPTO_API_TOKEN: ${{ secrets.CRYPTO_API_TOKEN }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+        run: python crypto_poster.py
+
+  post-stocks:
+    runs-on: ubuntu-latest
+    needs: post-crypto
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install requests playwright pillow
+          playwright install chromium --with-deps
+      - name: Post stocks to Facebook
+        env:
+          MODE: stocks
+          POST_MODE: stocks
+          STOCK_API_URL: ${{ secrets.STOCK_API_URL }}
+          STOCK_API_TOKEN: ${{ secrets.STOCK_API_TOKEN }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
         run: python poster.py
