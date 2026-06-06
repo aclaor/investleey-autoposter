@@ -2,7 +2,7 @@
 Investleey Facebook Auto-Poster
 Posts AI stock forecasts to Facebook page every 4 hours
 """
-import os, requests, random, json
+import os, requests, random, base64, json
 from datetime import datetime, timezone
 
 import os as _os
@@ -133,7 +133,7 @@ def format_post(data, symbol, interval="1h"):
     return post
 
 # ── POST TO FACEBOOK ──────────────────────────────────────
-def post_to_facebook(message):
+def post_to_facebook(message, image_url=None):
     # Try multiple endpoints for New Pages Experience compatibility
     endpoints = [
         f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/feed",
@@ -158,6 +158,60 @@ def post_to_facebook(message):
     return False
 
 # ── MAIN ──────────────────────────────────────────────────
+
+def take_screenshot(symbol):
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1280, "height": 800})
+            page.goto(SITE_URL, wait_until="networkidle", timeout=30000)
+            page.wait_for_timeout(3000)
+            page.evaluate("""() => {
+                [".ticker-bar","#bottom-section","#faq-section",".bottom-bar",
+                 ".pricing-modal",".modal-overlay","#signup-popup",
+                 ".trades-panel",".ob-panel","#crypto-market-overview"].forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.style.display="none");
+                });
+            }""")
+            inp = page.query_selector("#pair-input")
+            if inp: inp.fill(""); inp.type(symbol)
+            btn = page.query_selector(".run-btn")
+            if btn: btn.click()
+            try:
+                page.wait_for_function(
+                    "() => { const o = document.getElementById('chart-overlay'); return o && o.classList.contains('hidden'); }",
+                    timeout=90000)
+            except: pass
+            page.wait_for_timeout(4000)
+            path = "/tmp/fb_chart.png"
+            chart = page.query_selector(".chart-panel")
+            if chart: chart.screenshot(path=path)
+            else:
+                left = page.query_selector(".left-panel")
+                if left: left.screenshot(path=path)
+                else: page.screenshot(path=path)
+            browser.close()
+            print("✅ Screenshot saved!")
+            return path
+    except Exception as e:
+        print(f"Screenshot error: {e}")
+    return None
+
+def upload_to_imgbb(image_path):
+    try:
+        with open(image_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+        r = requests.post("https://api.imgbb.com/1/upload",
+            data={"key": IMGBB_KEY, "image": b64}, timeout=30)
+        if r.status_code == 200:
+            url = r.json()["data"]["url"]
+            print(f"✅ Uploaded: {url}")
+            return url
+    except Exception as e:
+        print(f"imgbb error: {e}")
+    return None
+
 def main():
     # Pick a random stock, weighted toward high-volume ones
     weights = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
