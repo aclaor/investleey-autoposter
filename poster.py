@@ -1,6 +1,7 @@
 """
 Investleey + ZeusVisions Facebook Auto-Poster
 Posts AI forecast charts WITH screenshots to Facebook page
+Uses same screenshot logic as discord_poster.py
 """
 import os, requests, random, base64, json, subprocess
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ IMGBB_KEY  = _os.environ.get("IMGBB_API_KEY", "72e357126560d58d7ae925855456fd50"
 CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT"]
 STOCK_WATCHLIST  = ["AAPL","MSFT","NVDA","TSLA","GOOGL","META","AMZN","AMD","NFLX","JPM","SPY","QQQ"]
 WATCHLIST  = CRYPTO_WATCHLIST if MODE=="crypto" else STOCK_WATCHLIST
+WEIGHTS    = [3,3,2,2,2,1,1,1,1,1] if len(WATCHLIST)==10 else [3,3,3,2,2,2,1,1,1,1,1,1]
 SITE_URL   = "https://zeusvisions.com" if MODE=="crypto" else "https://investleey.com"
 SITE_NAME  = "ZeusVisions" if MODE=="crypto" else "Investleey"
 
@@ -75,7 +77,6 @@ def format_post(data, symbol, interval="1h"):
         if not future or current == 0: return 0.0
         return ((future - current) / current) * 100
 
-    def arrow(val): return "📈" if val >= 0 else "📉"
     def fmt(val):
         sign = "+" if val >= 0 else ""
         return f"{sign}{val:.2f}%"
@@ -92,9 +93,8 @@ def format_post(data, symbol, interval="1h"):
     acc_vwap = data.get("accuracy_vwap600", 0)
 
     signal_name, signal_emoji, signal_arrow = get_signal(data, interval)
-    outlook = f"{signal_name} {signal_emoji}"
-
-    display = symbol.replace("USDT", "/USDT") if MODE=="crypto" else symbol
+    outlook   = f"{signal_name} {signal_emoji}"
+    display   = symbol.replace("USDT", "/USDT") if MODE=="crypto" else symbol
     asset_type = "crypto pairs" if MODE=="crypto" else "US stocks & ETFs"
 
     post = f"""{signal_arrow} {display} AI FORECAST — {day}
@@ -133,8 +133,9 @@ def format_post(data, symbol, interval="1h"):
     return post
 
 
-# ── TAKE SCREENSHOT (same approach as discord_poster.py) ──
+# ── TAKE SCREENSHOT — exact same logic as discord_poster.py ──
 def take_screenshot(symbol):
+    # Identical JS to discord_poster.py — captures #tv-chart for clean look
     js_code = """
 const { chromium } = require('/home/runner/work/investleey-autoposter/investleey-autoposter/node_modules/playwright');
 (async () => {
@@ -145,16 +146,6 @@ const { chromium } = require('/home/runner/work/investleey-autoposter/investleey
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto(site, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
-  // Hide distracting elements
-  await page.evaluate(() => {
-    ['.ticker-bar','#bottom-section','#live-proof-banner',
-     '.pricing-modal','.modal-overlay','#signup-popup',
-     '#exit-popup','#email-capture-modal',
-     '.trades-panel','.ob-panel'].forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => el.style.display='none');
-    });
-  });
-  // Type symbol and run forecast
   const input = await page.$('#pair-input');
   if (input) { await input.fill(''); await input.type(symbol); }
   const btn = await page.$('.run-btn');
@@ -163,22 +154,21 @@ const { chromium } = require('/home/runner/work/investleey-autoposter/investleey
     await page.waitForFunction(() => {
       const o = document.getElementById('chart-overlay');
       return o && o.classList.contains('hidden');
-    }, { timeout: 90000 });
+    }, { timeout: 60000 });
   } catch(e) { console.log('Timeout waiting for chart'); }
-  await page.waitForTimeout(4000);
-  // Screenshot the chart panel
-  const path = '/tmp/fb_chart.png';
+  await page.waitForTimeout(3000);
   try {
-    const el = await page.$('.chart-panel');
-    if (el) { await el.screenshot({ path }); }
-    else { await page.screenshot({ path, clip: { x: 220, y: 80, width: 860, height: 540 } }); }
-  } catch(e) { await page.screenshot({ path }); }
+    const el = await page.$('#tv-chart');
+    if (el) { await el.screenshot({ path: '/tmp/fb_chart.png' }); }
+    else { await page.screenshot({ path: '/tmp/fb_chart.png', clip: { x: 220, y: 80, width: 860, height: 540 } }); }
+  } catch(e) { await page.screenshot({ path: '/tmp/fb_chart.png' }); }
   await browser.close();
   console.log('Screenshot done!');
 })();
 """
     with open('/tmp/fb_screenshot.js', 'w') as jf:
         jf.write(js_code)
+
     project_dir = os.path.dirname(os.path.abspath(__file__))
     result = subprocess.run(
         ['node', '/tmp/fb_screenshot.js', symbol, SITE_URL],
@@ -186,12 +176,12 @@ const { chromium } = require('/home/runner/work/investleey-autoposter/investleey
         cwd=project_dir,
         env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'}
     )
-    print("Screenshot stdout:", result.stdout.strip())
-    if result.stderr: print("Screenshot stderr:", result.stderr.strip()[:200])
+    print("Screenshot:", result.stdout.strip())
+    if result.stderr: print("Stderr:", result.stderr.strip()[:200])
     if os.path.exists('/tmp/fb_chart.png'):
         print("✅ Screenshot saved!")
         return '/tmp/fb_chart.png'
-    print("❌ Screenshot file not found")
+    print("❌ Screenshot not found")
     return None
 
 
@@ -214,7 +204,6 @@ def upload_to_imgbb(image_path):
 
 # ── POST TO FACEBOOK WITH PHOTO ───────────────────────────
 def post_to_facebook_with_photo(message, image_url):
-    """Post with photo using /photos endpoint — shows image prominently"""
     endpoints = [
         f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/photos",
         f"https://graph.facebook.com/v20.0/{FB_PAGE_ID}/photos",
@@ -230,7 +219,7 @@ def post_to_facebook_with_photo(message, image_url):
             print(f"Tried {url}: {r.status_code}")
             if r.status_code == 200:
                 post_id = r.json().get("id", "")
-                print(f"✅ Posted to Facebook with photo! Post ID: {post_id}")
+                print(f"✅ Posted with photo! Post ID: {post_id}")
                 return True
         except Exception as e:
             print(f"Error: {e}")
@@ -238,7 +227,6 @@ def post_to_facebook_with_photo(message, image_url):
 
 
 def post_to_facebook_text_only(message):
-    """Fallback: text-only post"""
     endpoints = [
         f"https://graph.facebook.com/v21.0/{FB_PAGE_ID}/feed",
         f"https://graph.facebook.com/v20.0/{FB_PAGE_ID}/feed",
@@ -251,7 +239,7 @@ def post_to_facebook_text_only(message):
             }, timeout=30)
             print(f"Tried {url}: {r.status_code}")
             if r.status_code == 200:
-                print(f"✅ Posted text-only to Facebook!")
+                print(f"✅ Posted text-only!")
                 return True
         except Exception as e:
             print(f"Error: {e}")
@@ -260,11 +248,9 @@ def post_to_facebook_text_only(message):
 
 # ── MAIN ──────────────────────────────────────────────────
 def main():
-    weights = [max(1, 3-i//3) for i in range(len(WATCHLIST))]
-    symbol = random.choices(WATCHLIST, weights=weights, k=1)[0]
+    symbol = random.choices(WATCHLIST, weights=WEIGHTS, k=1)[0]
     print(f"Mode: {MODE} | Symbol: {symbol}")
 
-    # Get forecast
     data = get_forecast(symbol, interval="1h")
     if not data:
         fallback = "BTCUSDT" if MODE=="crypto" else "AAPL"
@@ -272,7 +258,7 @@ def main():
         data = get_forecast(fallback, interval="1h")
         symbol = fallback
     if not data:
-        print("❌ Could not get forecast. Exiting.")
+        print("❌ No forecast data. Exiting.")
         return
 
     message = format_post(data, symbol, interval="1h")
@@ -280,11 +266,9 @@ def main():
     print(message[:300])
     print("--- END PREVIEW ---\n")
 
-    # Take screenshot
+    # Screenshot → imgbb → Facebook with photo
     image_path = take_screenshot(symbol)
-
     if image_path:
-        # Upload to imgbb then post with photo
         image_url = upload_to_imgbb(image_path)
         if image_url:
             success = post_to_facebook_with_photo(message, image_url)
