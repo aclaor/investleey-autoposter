@@ -1,10 +1,8 @@
 """
 Reddit Post Generator for Investleey + ZeusVisions
-Generates ready-to-copy Reddit posts with screenshots.
-Run via GitHub Actions — outputs everything to the console.
-You copy and paste manually to Reddit.
+Generates human-sounding Reddit posts with screenshots.
 """
-import os, random, subprocess, base64, requests, json
+import os, random, subprocess, base64, requests
 from datetime import datetime, timezone
 
 # ── CONFIG ────────────────────────────────────────────────
@@ -14,51 +12,43 @@ API_TOKEN  = os.environ.get("STOCK_API_TOKEN", "") if MODE=="stocks" else os.env
 IMGBB_KEY  = os.environ.get("IMGBB_API_KEY", "72e357126560d58d7ae925855456fd50")
 SITE_URL   = "https://investleey.com" if MODE=="stocks" else "https://zeusvisions.com"
 SITE_NAME  = "Investleey" if MODE=="stocks" else "ZeusVisions"
-SYMBOL     = os.environ.get("SYMBOL", "")  # optional override
+SYMBOL     = os.environ.get("SYMBOL", "")
 
 STOCK_WATCHLIST  = ["NVDA","AAPL","TSLA","MSFT","GOOGL","META","AMZN","AMD","SPY","QQQ"]
 CRYPTO_WATCHLIST = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"]
 WATCHLIST        = STOCK_WATCHLIST if MODE=="stocks" else CRYPTO_WATCHLIST
 
 
-# ── GET FORECAST ──────────────────────────────────────────
 def get_forecast(symbol, interval="1h"):
-    print(f"📡 Fetching forecast: {symbol} {interval}...")
+    print(f"Fetching {symbol}...")
     try:
-        r = requests.post(
-            f"{API_URL}/forecast",
+        r = requests.post(f"{API_URL}/forecast",
             json={"symbol": symbol, "interval": interval},
-            headers={"x-api-token": API_TOKEN},
-            timeout=120
-        )
+            headers={"x-api-token": API_TOKEN}, timeout=120)
         if r.status_code == 200:
             return r.json()
-        print(f"API error: {r.status_code}")
     except Exception as e:
-        print(f"Forecast error: {e}")
+        print(f"Error: {e}")
     return None
 
 
-# ── GET SIGNAL ────────────────────────────────────────────
 def get_signal(data):
     fma7 = data.get("forecast_ma7", [])
     fma3 = data.get("forecast_ma3", [])
-    if fma7 and len(fma7) >= 5 and fma3 and len(fma3) >= 5:
-        if fma7[0] < fma7[4] and fma3[0] < fma3[4]: return "BULLISH", "📈"
-        elif fma7[0] > fma7[4] and fma3[0] > fma3[4]: return "BEARISH", "📉"
-    return "NEUTRAL", "➡️"
+    if fma7 and len(fma7)>=5 and fma3 and len(fma3)>=5:
+        if fma7[0]<fma7[4] and fma3[0]<fma3[4]: return "BULLISH","📈"
+        elif fma7[0]>fma7[4] and fma3[0]>fma3[4]: return "BEARISH","📉"
+    return "NEUTRAL","➡️"
 
 
-# ── TAKE SCREENSHOT ───────────────────────────────────────
 def take_screenshot(symbol):
-    print(f"📸 Taking screenshot of {symbol}...")
-    js_code = """
+    print(f"Taking screenshot...")
+    js = """
 const { chromium } = require('/home/runner/work/investleey-autoposter/investleey-autoposter/node_modules/playwright');
 (async () => {
-  const symbol = process.argv[2];
-  const site   = process.argv[3];
+  const symbol = process.argv[2], site = process.argv[3];
   const browser = await chromium.launch();
-  const page    = await browser.newPage();
+  const page = await browser.newPage();
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto(site, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
@@ -71,251 +61,267 @@ const { chromium } = require('/home/runner/work/investleey-autoposter/investleey
       const o = document.getElementById('chart-overlay');
       return o && o.classList.contains('hidden');
     }, { timeout: 60000 });
-  } catch(e) { console.log('Timeout waiting for chart'); }
+  } catch(e) {}
   await page.waitForTimeout(4000);
   try {
     const el = await page.$('#tv-chart');
-    if (el) { await el.screenshot({ path: '/tmp/reddit_chart.png' }); }
-    else { await page.screenshot({ path: '/tmp/reddit_chart.png', clip: { x: 220, y: 80, width: 860, height: 540 } }); }
+    if (el) await el.screenshot({ path: '/tmp/reddit_chart.png' });
+    else await page.screenshot({ path: '/tmp/reddit_chart.png', clip: { x:220, y:80, width:860, height:540 } });
   } catch(e) { await page.screenshot({ path: '/tmp/reddit_chart.png' }); }
   await browser.close();
-  console.log('Screenshot done!');
 })();
 """
-    with open('/tmp/reddit_screenshot.js', 'w') as f:
-        f.write(js_code)
-
+    with open('/tmp/ss.js','w') as f: f.write(js)
     project_dir = os.path.dirname(os.path.abspath(__file__))
-    result = subprocess.run(
-        ['node', '/tmp/reddit_screenshot.js', symbol, SITE_URL],
+    subprocess.run(['node','/tmp/ss.js', symbol, SITE_URL],
         capture_output=True, text=True, timeout=120,
         cwd=project_dir,
-        env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'}
-    )
-    if result.stdout: print(result.stdout.strip())
+        env={**os.environ, 'NODE_PATH': f'{project_dir}/node_modules'})
     if os.path.exists('/tmp/reddit_chart.png'):
-        print("✅ Screenshot saved!")
+        print("Screenshot done!")
         return '/tmp/reddit_chart.png'
-    print("❌ Screenshot failed")
     return None
 
 
-# ── UPLOAD TO IMGBB ───────────────────────────────────────
-def upload_to_imgbb(image_path):
-    print("⬆️  Uploading screenshot to imgbb...")
+def upload_imgbb(path):
     try:
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("utf-8")
+        with open(path,"rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
         r = requests.post("https://api.imgbb.com/1/upload",
             data={"key": IMGBB_KEY, "image": b64}, timeout=30)
         if r.status_code == 200:
-            data = r.json()["data"]
-            print(f"✅ Uploaded: {data['url']}")
-            return data['url'], data.get('display_url', data['url'])
+            url = r.json()["data"]["url"]
+            print(f"Uploaded: {url}")
+            return url
     except Exception as e:
-        print(f"imgbb error: {e}")
-    return None, None
+        print(f"Upload error: {e}")
+    return None
 
 
-# ── GENERATE POSTS ────────────────────────────────────────
-def generate_posts(data, symbol, signal, signal_emoji, image_url):
-    last_close = data.get("last_close", 0)
-    acc_ma7    = data.get("accuracy_ma7", 0)
-    acc_ma25   = data.get("accuracy_ma25", 0)
-    acc_ma3    = data.get("accuracy_ma3", 0)
-    f_ma7      = data.get("forecast_ma7", [])
-    f_ma3      = data.get("forecast_ma3", [])
-    target_7d  = f_ma7[6]  if len(f_ma7)  > 6  else last_close
-    target_30d = f_ma7[29] if len(f_ma7)  > 29 else last_close
-    pct_7      = ((target_7d - last_close) / last_close * 100) if last_close else 0
-    pct_30     = ((target_30d - last_close) / last_close * 100) if last_close else 0
-    pct_7_str  = f"+{pct_7:.1f}%" if pct_7 >= 0 else f"{pct_7:.1f}%"
-    pct_30_str = f"+{pct_30:.1f}%" if pct_30 >= 0 else f"{pct_30:.1f}%"
-    now        = datetime.now(timezone.utc)
-    date_str   = now.strftime("%B %d, %Y")
-    display    = symbol.replace("USDT", "/USDT") if MODE == "crypto" else symbol
-    asset_type = "crypto" if MODE == "crypto" else "stock"
-    img_line   = f"\n\n[📊 Chart Screenshot]({image_url})\n" if image_url else ""
+def generate_posts(data, symbol, signal, emoji, image_url):
+    price   = data.get("last_close", 0)
+    acc7    = data.get("accuracy_ma7", 0)
+    acc25   = data.get("accuracy_ma25", 0)
+    fma7    = data.get("forecast_ma7", [])
+    t7      = fma7[6]  if len(fma7)>6  else price
+    t30     = fma7[29] if len(fma7)>29 else price
+    pct7    = ((t7-price)/price*100) if price else 0
+    pct30   = ((t30-price)/price*100) if price else 0
+    p7s     = f"+{pct7:.1f}%" if pct7>=0 else f"{pct7:.1f}%"
+    p30s    = f"+{pct30:.1f}%" if pct30>=0 else f"{pct30:.1f}%"
+    display = symbol.replace("USDT","/USDT") if MODE=="crypto" else symbol
+    img     = f"\n\n[Chart]({image_url})\n" if image_url else ""
+    dow     = datetime.now().strftime("%A")
+    asset   = "crypto" if MODE=="crypto" else "stock"
+
+    # ── Vary openers so posts don't look templated ────────
+    openers_sideproject = [
+        f"so i've been working on this thing for the past few months while doing my day job and i think it's finally at a point where i can share it",
+        f"been lurking here forever, finally have something worth posting about",
+        f"not sure if this belongs here but figured this community would appreciate it more than most",
+        f"ok so this started as a weekend project and kind of got out of hand lol",
+    ]
+
+    openers_algo = [
+        f"wanted to get some feedback on a forecasting approach i've been working on",
+        f"been building this in my spare time, curious what people who actually know what they're doing think",
+        f"throwing this out there for critique — be brutal, i can take it",
+        f"built something i've been wanting for ages and figured someone here might find it interesting",
+    ]
+
+    openers_discuss = [
+        f"been tracking {display} with a tool i built — sharing for anyone who's interested",
+        f"my ai model is flagging {display} today, posting for discussion",
+        f"ran my forecasting tool on {display} this morning, here's what came out",
+        f"for what it's worth, here's what my model is showing on {display} right now",
+    ]
+
+    o1 = random.choice(openers_sideproject)
+    o2 = random.choice(openers_algo)
+    o3 = random.choice(openers_discuss)
+
+    # ── Vary signal descriptions ──────────────────────────
+    if signal == "BULLISH":
+        signal_desc = [
+            f"it's calling {display} bullish right now",
+            f"model is leaning bullish on {display}",
+            f"pointing up on {display} — make of that what you will",
+        ]
+    elif signal == "BEARISH":
+        signal_desc = [
+            f"it's flagging {display} as bearish",
+            f"model is bearish on {display} currently",
+            f"not looking great for {display} according to the model",
+        ]
+    else:
+        signal_desc = [
+            f"showing neutral on {display} — basically saying wait and see",
+            f"{display} is consolidating according to the model",
+            f"model can't make up its mind on {display} lol",
+        ]
+    sdesc = random.choice(signal_desc)
 
     posts = []
 
-    # ── POST 1: r/SideProject or r/IMadeThis ─────────────
+    # ── POST 1: r/SideProject / r/IMadeThis ──────────────
     posts.append({
-        "subreddit": "r/SideProject  OR  r/IMadeThis",
-        "title": f"I built a free AI {asset_type} forecasting tool while working my 9-to-5 — {display} is showing {signal} today",
-        "body": f"""Hey everyone! Been quietly working on this side project for a few months and finally feel like it's good enough to share.
+        "subreddit": "r/SideProject  or  r/IMadeThis  ← BEST for low karma!",
+        "title": random.choice([
+            f"built a free ai {asset} forecasting tool in my spare time — {sdesc}",
+            f"side project update: my ai {asset} tool {sdesc} ({display} today)",
+            f"spent way too many weekends on this — free ai {asset} forecaster, {sdesc}",
+        ]),
+        "body": f"""{o1}
 
-I built **{SITE_NAME}** — a free AI tool that gives BULLISH/BEARISH/NEUTRAL signals for {'500+ US stocks & ETFs' if MODE=='stocks' else '500+ crypto pairs'}.{img_line}
+i built {SITE_NAME}, a free tool that gives bull/bear signals for {'500+ stocks' if MODE=='stocks' else '500+ crypto pairs'}. it uses multiple moving average models and spits out a consensus signal with a confidence score.{img}
 
-**Today's {display} signal ({date_str}):**
-- Current Price: ${last_close:,.2f}
-- Signal: {signal_emoji} **{signal}**
-- 7-Day Target: ${target_7d:,.2f} ({pct_7_str})
-- 30-Day Target: ${target_30d:,.2f} ({pct_30_str})
-- AI Accuracy: {acc_ma7:.1f}% (MA-7) | {acc_ma25:.1f}% (MA-25)
+here's what it's showing on {display} right now:
+price: ${price:,.2f}
+signal: {emoji} {signal.lower()} 
+7 day target: ${t7:,.2f} ({p7s})
+30 day target: ${t30:,.2f} ({p30s})
+accuracy on backtesting: {acc7:.0f}% (ma7) / {acc25:.0f}% (ma25)
 
-The AI runs multiple moving average models and generates a consensus signal with a confidence score. Built the backend in FastAPI, deployed on Railway.
+it's free to try — 3 days unlimited, no credit card or anything: {SITE_URL}
 
-**Try it free:** {SITE_URL}
-*(3-day full trial, no credit card needed)*
-
-Would genuinely love feedback from anyone here who trades — what would make this more useful for your workflow?"""
+honestly just want to know if this is actually useful or if i'm the only one who would use something like this lol. what would you change?"""
     })
 
-    # ── POST 2: r/algotrading ─────────────────────────────
+    # ── POST 2: r/algotrading ────────────────────────────
     posts.append({
         "subreddit": "r/algotrading",
-        "title": f"Built a multi-model MA consensus forecasting tool — {display} showing {signal} {signal_emoji} | {date_str}",
-        "body": f"""Been building this for a while and wanted to get the algotrading community's thoughts on the approach.
+        "title": random.choice([
+            f"consensus MA forecasting on {display} — {signal.lower()} signal, feedback welcome",
+            f"my multi-model MA tool is showing {signal.lower()} on {display} — is this approach sound?",
+            f"built a MA consensus model, curious what algotraders think of the output on {display}",
+        ]),
+        "body": f"""{o2}
 
-**The method:**
-The tool runs MA-3, MA-7, MA-25 and VWAP models simultaneously on OHLCV data, then generates a consensus signal based on whether the majority of models agree on direction.{img_line}
+the basic idea: run MA-3, MA-7, MA-25 and VWAP forecasts in parallel, then check if 3 out of 4 agree on direction. if they do, it's a signal. if not, neutral.{img}
 
-**Today's {display} output:**
-- Price: ${last_close:,.2f}
-- Consensus Signal: {signal_emoji} **{signal}**
-- MA-3 Accuracy: {acc_ma3:.1f}% | MA-7: {acc_ma7:.1f}% | MA-25: {acc_ma25:.1f}%
-- 7D Target: ${target_7d:,.2f} ({pct_7_str})
+{display} right now:
+${price:,.2f} current
+{emoji} {signal.lower()} signal  
+7d: ${t7:,.2f} ({p7s})
+MA7 backtest accuracy: {acc7:.1f}%
+MA25 backtest accuracy: {acc25:.1f}%
 
-Works on 1m, 5m, 15m, 1H, 4H, 1D timeframes.
+works across 1m to 1d timeframes. built in fastapi, live at {SITE_URL} if you want to poke at it
 
-Code is Python/FastAPI backend with a JS frontend. Live at {SITE_URL} if you want to test it.
-
-Curious what people here think — is the consensus approach reasonable or am I missing something fundamental?"""
+main thing i'm not sure about: is consensus across MAs actually meaningful or am i just averaging noise? curious what people here think"""
     })
 
-    # ── POST 3: r/stocks or r/CryptoCurrency ─────────────
+    # ── POST 3: r/stocks / r/CryptoCurrency ──────────────
     if signal == "BULLISH":
-        title3 = f"{display} — AI showing {signal_emoji} BULLISH signal, 7-day target ${target_7d:,.2f} ({pct_7_str}) | {date_str}"
+        t3 = random.choice([
+            f"{display} looking bullish according to my model — anyone else seeing this?",
+            f"my ai is saying {display} is a buy right now — thoughts?",
+            f"{display} — model flagging bullish {dow}, 7d target {p7s}",
+        ])
     elif signal == "BEARISH":
-        title3 = f"{display} — AI showing {signal_emoji} BEARISH signal, 7-day target ${target_7d:,.2f} ({pct_7_str}) | {date_str}"
+        t3 = random.choice([
+            f"{display} bearish signal on my model today — anyone else cautious?",
+            f"my tool is flagging {display} as bearish — curious if others agree",
+            f"{display} — model showing bearish {dow}, 7d target {p7s}",
+        ])
     else:
-        title3 = f"{display} — AI showing {signal_emoji} NEUTRAL, consolidating around ${last_close:,.2f} | {date_str}"
+        t3 = random.choice([
+            f"{display} neutral/consolidating on my model — waiting for a clearer signal",
+            f"my ai can't decide on {display} today lol — neutral signal",
+            f"{display} — model showing neutral {dow}, range bound",
+        ])
 
     posts.append({
-        "subreddit": "r/stocks  OR  r/CryptoCurrency  OR  r/Daytrading",
-        "title": title3,
-        "body": f"""Been tracking {display} with an AI forecasting tool I built. Here's today's output:{img_line}
+        "subreddit": f"r/{'stocks' if MODE=='stocks' else 'CryptoCurrency'}  or  r/Daytrading",
+        "title": t3,
+        "body": f"""{o3}{img}
 
-**{display} — {date_str}**
-- Current: ${last_close:,.2f}
-- Signal: {signal_emoji} **{signal}**
-- 7-Day Target: ${target_7d:,.2f} ({pct_7_str})
-- 30-Day Target: ${target_30d:,.2f} ({pct_30_str})
-- Backtested Accuracy: {acc_ma7:.1f}%
+{display} — {datetime.now().strftime("%b %d")}:
+${price:,.2f}
+{emoji} {signal.lower()}
+7d target: ${t7:,.2f} ({p7s})
 
-What's your take on {display} right now? Does this align with your analysis?
+what are you guys seeing on {display}? curious if this lines up with anyone else's analysis
 
-*(Tool is free at {SITE_URL} if anyone wants to run their own signals — not financial advice)*"""
+*(running this through a tool i built — {SITE_URL} if curious, it's free. not financial advice obviously)*"""
     })
 
     return posts
 
 
-# ── PRINT OUTPUT ──────────────────────────────────────────
-def print_output(posts, image_url, image_path):
-    sep = "=" * 70
-
+def print_output(posts, image_url):
+    sep = "="*65
     print(f"\n{sep}")
-    print("🎉  REDDIT POST GENERATOR — COPY & PASTE BELOW")
+    print("✅  REDDIT POSTS READY — COPY AND PASTE")
     print(sep)
 
     if image_url:
-        print(f"\n📸 SCREENSHOT URL (use this as image when posting):")
-        print(f"   {image_url}")
-        print(f"\n   ➡️  When posting to Reddit:")
-        print(f"       1. Click 'Images & Video' tab")
-        print(f"       2. Upload the screenshot file directly")
-        print(f"          OR paste the URL above as a link post")
+        print(f"\n📸  SCREENSHOT LINK:")
+        print(f"    {image_url}")
+        print(f"    Download from artifacts below OR use this link in your post")
 
     for i, post in enumerate(posts, 1):
         print(f"\n{sep}")
-        print(f"📝  POST OPTION {i} — Best for: {post['subreddit']}")
+        print(f"OPTION {i}   {post['subreddit']}")
         print(sep)
-        print(f"\n🏷️  TITLE (copy this):")
-        print(f"{'─'*50}")
-        print(post['title'])
-        print(f"{'─'*50}")
-        print(f"\n📄  BODY (copy this):")
-        print(f"{'─'*50}")
-        print(post['body'])
-        print(f"{'─'*50}")
+        print(f"\nTITLE:\n{post['title']}")
+        print(f"\nBODY:\n{post['body']}")
 
     print(f"\n{sep}")
-    print("📌  POSTING TIPS:")
+    print("TIPS FOR LOW KARMA ACCOUNTS:")
     print(sep)
     print("""
-1. r/SideProject & r/IMadeThis — BEST for low karma accounts ✅
-   → These communities love solo builders, very welcoming
-   → Post Option 1 works great here
+Start with r/SideProject or r/IMadeThis (Option 1)
+  These accept ANY karma level and love builders
 
-2. r/algotrading — Good but needs some karma
-   → Very technical community, Post Option 2 is perfect
-   → Comment on other posts first to build karma
+After posting, stick around and reply to comments
+  Don't just post and disappear — Reddit hates that
 
-3. r/stocks / r/CryptoCurrency — Needs more karma (50+)
-   → Use Post Option 3 once you have more karma
-   → Always add "not financial advice" disclaimer
+Wait 2-3 days between posts on different subreddits
+  Don't post all 3 on the same day
 
-4. IMPORTANT RULES:
-   → Don't post same content twice in one week
-   → Always engage with comments after posting
-   → Don't just drop link and leave — Reddit hates that
-   → Read each subreddit's rules before posting
+Tweak the post slightly before each one
+  Change a few words so it doesn't look copy-pasted
+
+r/algotrading and r/stocks need ~50 karma first
+  Comment on other posts this week to build it up
 """)
     print(sep)
 
 
-# ── SAVE SCREENSHOT AS ARTIFACT ───────────────────────────
-def save_artifact(image_path):
-    """Copy screenshot to output dir for GitHub Actions artifact"""
-    if image_path and os.path.exists(image_path):
+def save_artifact(path):
+    if path and os.path.exists(path):
         import shutil
         os.makedirs('reddit_output', exist_ok=True)
         dest = f"reddit_output/chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        shutil.copy(image_path, dest)
-        print(f"\n💾 Screenshot saved as artifact: {dest}")
+        shutil.copy(path, dest)
+        print(f"Screenshot artifact: {dest}")
 
 
-# ── MAIN ──────────────────────────────────────────────────
 def main():
-    print("🚀 Reddit Post Generator Starting...")
-    print(f"   Mode: {MODE.upper()} | Site: {SITE_URL}")
+    print(f"Mode: {MODE} | Site: {SITE_URL}")
+    symbol = SYMBOL.upper() if SYMBOL else random.choices(
+        WATCHLIST, weights=[3,3,2,2,1,1,1,1,1,1][:len(WATCHLIST)], k=1)[0]
+    print(f"Symbol: {symbol}")
 
-    # Pick symbol
-    if SYMBOL:
-        symbol = SYMBOL.upper()
-    else:
-        weights = [3, 3, 2, 2, 1, 1, 1, 1, 1, 1][:len(WATCHLIST)]
-        symbol  = random.choices(WATCHLIST, weights=weights, k=1)[0]
-    print(f"   Symbol: {symbol}")
-
-    # Get forecast
-    data = get_forecast(symbol, interval="1h")
+    data = get_forecast(symbol)
     if not data:
-        fallback = "NVDA" if MODE == "stocks" else "BTCUSDT"
-        print(f"   Trying fallback: {fallback}")
-        data = get_forecast(fallback, interval="1h")
-        symbol = fallback
+        fb = "NVDA" if MODE=="stocks" else "BTCUSDT"
+        data = get_forecast(fb)
+        symbol = fb
     if not data:
-        print("❌ Could not get forecast data")
+        print("No forecast data")
         return
 
-    signal, signal_emoji = get_signal(data)
-    print(f"   Signal: {signal_emoji} {signal}")
+    signal, emoji = get_signal(data)
+    print(f"Signal: {emoji} {signal}")
 
-    # Take screenshot
     image_path = take_screenshot(symbol)
-    image_url  = None
-    if image_path:
-        image_url, _ = upload_to_imgbb(image_path)
-        save_artifact(image_path)
+    image_url  = upload_imgbb(image_path) if image_path else None
+    save_artifact(image_path)
 
-    # Generate posts
-    posts = generate_posts(data, symbol, signal, signal_emoji, image_url)
-
-    # Print everything
-    print_output(posts, image_url, image_path)
+    posts = generate_posts(data, symbol, signal, emoji, image_url)
+    print_output(posts, image_url)
 
 
 if __name__ == "__main__":
