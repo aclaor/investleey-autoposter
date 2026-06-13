@@ -53,7 +53,7 @@ jobs:
         run: python reddit_generator.py
 
       - name: Upload Screenshot as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reddit-screenshot
