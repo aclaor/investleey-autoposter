@@ -1,0 +1,61 @@
+name: 📝 Reddit Post Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'stocks or crypto'
+        required: true
+        default: 'stocks'
+        type: choice
+        options:
+          - stocks
+          - crypto
+      symbol:
+        description: 'Symbol to forecast (optional, e.g. NVDA or BTCUSDT)'
+        required: false
+        default: ''
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Python dependencies
+        run: pip install requests python-dotenv playwright
+
+      - name: Install Playwright browsers
+        run: playwright install chromium && playwright install-deps chromium
+
+      - name: Install Node dependencies
+        run: npm install playwright
+
+      - name: Generate Reddit Post
+        env:
+          MODE: ${{ github.event.inputs.mode }}
+          SYMBOL: ${{ github.event.inputs.symbol }}
+          STOCK_API_URL: ${{ secrets.STOCK_API_URL }}
+          STOCK_API_TOKEN: ${{ secrets.STOCK_API_TOKEN }}
+          CRYPTO_API_URL: ${{ secrets.CRYPTO_API_URL }}
+          CRYPTO_API_TOKEN: ${{ secrets.CRYPTO_API_TOKEN }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+        run: python reddit_generator.py
+
+      - name: Upload Screenshot as Artifact
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: reddit-screenshot
+          path: reddit_output/
+          retention-days: 7
